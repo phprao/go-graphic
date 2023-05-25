@@ -1,6 +1,6 @@
-package demo1
+package demo2
 
-// 教程：https://linux.cn/article-8933-1.html
+// 教程：https://linux.cn/article-8937-1.html
 
 import (
 	"fmt"
@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	width  = 500
-	height = 500
+	width   = 500
+	height  = 500
+	rows    = 10
+	columns = 10
 
 	// 顶点着色器
 	vertexShaderSource = `
@@ -36,14 +38,26 @@ const (
 )
 
 var (
-	// X,Y,Z
-	// 窗口中心点为原点，向右为X正，上为Y正，取值 -1到1
-	triangle = []float32{
-		0, 0.5, 0, // top:X,Y,Z
-		-0.5, -0.5, 0, // left
-		0.5, -0.5, 0, // right
+	square = []float32{
+		-0.5, 0.5, 0,
+		-0.5, -0.5, 0,
+		0.5, -0.5, 0,
+		-0.5, 0.5, 0,
+		0.5, 0.5, 0,
+		0.5, -0.5, 0,
 	}
 )
+
+type cell struct {
+	drawable uint32
+	x        int
+	y        int
+}
+
+func (c *cell) draw() {
+	gl.BindVertexArray(c.drawable)
+	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(square)/3))
+}
 
 func Run() {
 	runtime.LockOSThread()
@@ -54,10 +68,75 @@ func Run() {
 
 	program := initOpenGL()
 
-	vao := makeVao(triangle)
+	cells := makeCells()
 
 	for !window.ShouldClose() {
-		draw(vao, window, program)
+		draw(cells, window, program)
+	}
+}
+
+func makeCells() [][]*cell {
+	cells := make([][]*cell, rows, columns)
+	for x := 0; x < rows; x++ {
+		for y := 0; y < columns; y++ {
+			c := newCell(x, y)
+			cells[x] = append(cells[x], c)
+		}
+	}
+	return cells
+}
+
+func newCell(x, y int) *cell {
+	points := make([]float32, len(square), len(square))
+	copy(points, square)
+	for i := 0; i < len(points); i++ {
+		// var position float32
+		// var size float32
+		// switch i % 3 {
+		// case 0: // 操作X坐标
+		// 	size = 1.0 / float32(columns)
+		// 	position = float32(x) * size
+		// case 1: // 操作Y坐标
+		// 	size = 1.0 / float32(rows)
+		// 	position = float32(y) * size
+		// default:
+		// 	continue
+		// }
+		// if points[i] < 0 {
+		// 	points[i] = (position * 2) - 1
+		// } else {
+		// 	points[i] = ((position + size) * 2) - 1
+		// }
+
+		var position float32
+		var size float32
+		switch i % 3 {
+		case 0:
+			// 操作X坐标
+			// 取值范围是-1到1，因此长度为2，size为单个方格的x或y的长度
+			// 由于x和y取值是大于等于0的，因此不妨现在[0,2]区间上来排，然后再减1，挪到[-1,1]区间
+			// position就是偏移量
+			size = 2.0 / float32(columns)
+			position = float32(x) * size
+		case 1:
+			// 操作Y坐标
+			size = 2.0 / float32(rows)
+			position = float32(y) * size
+
+		default:
+			continue
+		}
+		if points[i] < 0 {
+			points[i] = position - 1
+		} else {
+			points[i] = position + size - 1
+		}
+	}
+	// fmt.Printf("x=%d, y=%d, points=%v\n", x, y, points)
+	return &cell{
+		drawable: makeVao(points),
+		x:        x,
+		y:        y,
 	}
 }
 
@@ -105,12 +184,15 @@ func initOpenGL() uint32 {
 	return prog
 }
 
-func draw(vao uint32, window *glfw.Window, prog uint32) {
+func draw(cells [][]*cell, window *glfw.Window, prog uint32) {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(prog)
 
-	gl.BindVertexArray(vao)
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(triangle)/3)) // 三角形
+	for x := range cells {
+		for _, c := range cells[x] {
+			c.draw()
+		}
+	}
 
 	glfw.PollEvents()
 	window.SwapBuffers()
@@ -126,8 +208,8 @@ func makeVao(points []float32) uint32 {
 	var vao uint32
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
+
 	gl.EnableVertexAttribArray(0)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
 	return vao
 }
