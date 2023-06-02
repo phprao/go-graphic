@@ -1,6 +1,7 @@
 package demo1
 
 // 教程：https://linux.cn/article-8933-1.html
+// 绘制三角形，正方形
 
 import (
 	"log"

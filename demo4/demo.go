@@ -1,5 +1,7 @@
 package demo4
 
+// 纹理贴图
+
 import (
 	"runtime"
 
@@ -29,6 +31,37 @@ const (
         }
     ` + "\x00"
 	fragmentShaderSource = `
+        #version 410
+        
+		in vec3 fColor;
+		in vec2 fTexCoord;
+
+		out vec4 frag_colour;
+
+		uniform sampler2D ourTexture;
+
+        void main() {
+			frag_colour = texture(ourTexture, fTexCoord);
+        }
+    ` + "\x00"
+
+	vertexShaderSource2 = `
+        #version 410
+
+        in vec3 vPosition;
+		in vec3 vColor;
+		in vec2 vTexCoord;
+		
+		out vec3 fColor;
+		out vec2 fTexCoord;
+
+        void main() {
+            gl_Position = vec4(vPosition, 1.0);
+			fColor = vColor;
+			fTexCoord = vec2(vTexCoord.x, 1.0-vTexCoord.y);
+        }
+    ` + "\x00"
+	fragmentShaderSource2 = `
         #version 410
         
 		in vec3 fColor;
@@ -66,6 +99,35 @@ func Run() {
 	defer glfw.Terminate()
 
 	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	vao := util.MakeVaoWithEboAndAttrib(vertices, indices)
+	pointNum := int32(len(indices))
+	texture1 := util.MakeTexture("demo4/container.jpg")
+
+	for !window.ShouldClose() {
+		gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, texture1)
+
+		gl.BindVertexArray(vao)
+		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
+
+		gl.BindVertexArray(vao)
+		gl.DrawElements(gl.TRIANGLES, pointNum, gl.UNSIGNED_INT, gl.Ptr(indices))
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}
+
+func Run2() {
+	runtime.LockOSThread()
+	window := util.InitGlfw(width, height, "texture2d")
+	defer glfw.Terminate()
+
+	program := util.InitOpenGL(vertexShaderSource2, fragmentShaderSource2)
 	vao := util.MakeVaoWithEboAndAttrib(vertices, indices)
 	pointNum := int32(len(indices))
 	texture1 := util.MakeTexture("demo4/container.jpg")
