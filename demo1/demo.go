@@ -3,13 +3,12 @@ package demo1
 // 教程：https://linux.cn/article-8933-1.html
 
 import (
-	"fmt"
 	"log"
 	"runtime"
-	"strings"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/phprao/go-graphic/util"
 )
 
 const (
@@ -39,118 +38,101 @@ var (
 	// X,Y,Z
 	// 窗口中心点为原点，向右为X正，上为Y正，取值 -1到1
 	triangle = []float32{
-		0, 0.5, 0, // top:X,Y,Z
-		-0.5, -0.5, 0, // left
-		0.5, -0.5, 0, // right
+		0, 0.5, 0,
+		-0.5, -0.5, 0,
+		0.5, -0.5, 0,
+	}
+
+	// 四边形
+	square = []float32{
+		-0.5, 0.5, 0,
+		-0.5, -0.5, 0,
+		0.5, -0.5, 0,
+		-0.5, 0.5, 0,
+		0.5, 0.5, 0,
+		0.5, -0.5, 0,
+	}
+
+	// 四边形2
+	square2 = []float32{
+		-0.5, 0.5, 0,
+		-0.5, -0.5, 0,
+		0.5, -0.5, 0,
+		0.5, 0.5, 0,
+	}
+
+	// 索引数据
+	indexs = []uint32{
+		0, 1, 2,
+		0, 2, 3,
 	}
 )
 
 func Run() {
 	runtime.LockOSThread()
 
-	window := initGlfw()
+	window := util.InitGlfw(width, height, "Conway's Game of Life")
 
 	defer glfw.Terminate()
 
-	program := initOpenGL()
+	KeyPressAction(window)
 
-	vao := makeVao(triangle)
+	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+
+	vao := util.MakeVao(square)
+	pointNum := int32(len(square))
+
+	glfw.SwapInterval(1)
 
 	for !window.ShouldClose() {
-		draw(vao, window, program)
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.BindVertexArray(vao)
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum)
+
+		glfw.PollEvents()
+		window.SwapBuffers()
 	}
 }
 
-// initGlfw 初始化 glfw 并且返回一个可用的窗口。
-func initGlfw() *glfw.Window {
-	if err := glfw.Init(); err != nil {
-		panic(err)
+func Run2() {
+	runtime.LockOSThread()
+
+	window := util.InitGlfw(width, height, "Conway's Game of Life")
+
+	defer glfw.Terminate()
+
+	KeyPressAction(window)
+
+	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+
+	vao := util.MakeVaoWithEbo(square2, indexs)
+	pointNum := int32(len(indexs))
+
+	glfw.SwapInterval(1)
+
+	for !window.ShouldClose() {
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.BindVertexArray(vao)
+		gl.DrawElements(gl.TRIANGLES, pointNum, gl.UNSIGNED_INT, gl.Ptr(indexs))
+
+		glfw.PollEvents()
+		window.SwapBuffers()
 	}
-	glfw.WindowHint(glfw.Resizable, glfw.False)
-	glfw.WindowHint(glfw.ContextVersionMajor, 4) // OR 2
-	glfw.WindowHint(glfw.ContextVersionMinor, 1)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	window, err := glfw.CreateWindow(width, height, "Conway's Game of Life", nil, nil)
-	if err != nil {
-		panic(err)
-	}
-	window.MakeContextCurrent()
-	return window
 }
 
-// initOpenGL 初始化 OpenGL 并且返回一个初始化了的程序。
-func initOpenGL() uint32 {
-	if err := gl.Init(); err != nil {
-		panic(err)
+func KeyPressAction(window *glfw.Window) {
+	// action参数表示这个按键是被按下还是释放，按下的时候会触发action=1，如果不放会一直触发action=2，放开的时候会触发action=0事件
+	// mods表示是否有Ctrl、Shift、Alt、Super四个按钮的操作，1-shift,2-ctrl,4-alt，8-win
+	keyCallback := func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		log.Printf("key:%d, scancode:%d, action:%d, mods:%v\n", key, scancode, action, mods)
+		// 如果按下了ESC键就关闭窗口
+		if key == glfw.KeyEscape && action == glfw.Press {
+			window.SetShouldClose(true)
+		}
 	}
-	version := gl.GoStr(gl.GetString(gl.VERSION))
-	log.Println("OpenGL version", version)
-
-	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
-	if err != nil {
-		panic(err)
-	}
-	fragmentShader, err := compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
-	if err != nil {
-		panic(err)
-	}
-
-	prog := gl.CreateProgram()
-
-	gl.AttachShader(prog, vertexShader)
-	gl.AttachShader(prog, fragmentShader)
-
-	gl.LinkProgram(prog)
-	return prog
-}
-
-func draw(vao uint32, window *glfw.Window, prog uint32) {
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	gl.UseProgram(prog)
-
-	gl.BindVertexArray(vao)
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(triangle)/3)) // 三角形
-
-	glfw.PollEvents()
-	window.SwapBuffers()
-}
-
-// makeVao 执行初始化并从提供的点里面返回一个顶点数组
-func makeVao(points []float32) uint32 {
-	var vbo uint32
-	gl.GenBuffers(1, &vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(points), gl.Ptr(points), gl.STATIC_DRAW)
-
-	var vao uint32
-	gl.GenVertexArrays(1, &vao)
-	gl.BindVertexArray(vao)
-
-	gl.EnableVertexAttribArray(0)
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
-
-	return vao
-}
-
-func compileShader(source string, shaderType uint32) (uint32, error) {
-	shader := gl.CreateShader(shaderType)
-
-	csources, free := gl.Strs(source)
-	gl.ShaderSource(shader, 1, csources, nil)
-	free()
-	gl.CompileShader(shader)
-
-	var status int32
-	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
-		log := strings.Repeat("\x00", int(logLength+1))
-		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(log))
-
-		return 0, fmt.Errorf("failed to compile %v: %v", source, log)
-	}
-
-	return shader, nil
+	window.SetKeyCallback(keyCallback)
 }
