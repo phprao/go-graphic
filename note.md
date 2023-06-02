@@ -616,7 +616,7 @@ vertices = []float32{
 }
 ```
 
-多边形是四边形，纹理也是四边形，然后纹理坐标的取值达到了1，那么这段数据是想将纹理完全铺到四边形上，如果尺寸或者比例不匹配会自动缩放，最终铺满。我们以在房间铺设瓷砖为例，如果想在X轴上用两块瓷砖铺满，我们需要将纹理的X轴放大2倍，也就是说，我们可以通过修改纹理坐标的大小来改变纹理和目标多边形的大小比例。
+目标多边形是四边形，纹理也是四边形，然后纹理坐标的取值达到了1，那么这段数据是想将纹理完全铺到四边形上，如果尺寸或者比例不匹配会自动缩放纹理图片，最终铺满。我们以在房间铺设瓷砖为例，如果想在X轴上用两块瓷砖铺满，我们需要将纹理的X轴放大2倍，也就是说，我们可以通过修改纹理坐标的大小来改变纹理和目标多边形的大小比例。
 
 那么当纹理坐标大于这个值会出现什么情况呢？我们可以对OpenGL进行设置，以决定当纹理坐标不位于这一区间时应采取的操作。
 
@@ -627,17 +627,11 @@ vertices = []float32{
 | GL_CLAMP_TO_EDGE   | 纹理坐标会被约束在0到1之间，超出的部分会重复纹理坐标的边缘，产生一种边缘被拉伸的效果。 |
 | GL_CLAMP_TO_BORDER | 超出的坐标为用户指定的边缘颜色。                             |
 
-我们可以指定两种操作：GL_CLAMP和GL_REPEAT。对于GL_CLAMP,超出纹理坐标的区域会使用纹理图像的边界颜色来代替，如图所示。
-
-![image-20230602110225384](D:\dev\php\magook\trunk\server\md\img\image-20230602110225384.png)
-
-而GL_REPEAT方式则是对纹理坐标进行重置而得到重复的图像。观察图，你就能很容易地发现这一点。
-
-![image-20230602110245840](D:\dev\php\magook\trunk\server\md\img\image-20230602110245840.png)
+具体效果，下文会有示例
 
  ```go
- glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,*WrapMode*);//在s方向上的缠绕方式
- glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,*WrapMode*);//在t方向上的缠绕方式
+ gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+ gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
  ```
 
 **纹理过滤**
@@ -659,8 +653,8 @@ GL_NEAREST产生了颗粒状的图案，我们能够清晰看到组成纹理的�
 当进行放大(Magnify)和缩小(Minify)操作的时候可以设置纹理过滤的选项，比如你可以在纹理被缩小的时候使用邻近过滤，被放大时使用线性过滤。我们需要使用glTexParameter*函数为放大和缩小指定过滤方式。这段代码看起来会和纹理环绕方式的设置很相似：
 
 ```go
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 ```
 
 可使用的纹理滤镜
@@ -695,32 +689,17 @@ OpenGL使用一种叫做多级渐远纹理(Mipmap)的概念来解决这个问题
 | GL_NEAREST_MIPMAP_LINEAR  | 在两个最匹配像素大小的多级渐远纹理之间进行线性插值，使用邻近插值进行采样 |
 | GL_LINEAR_MIPMAP_LINEAR   | 在两个邻近的多级渐远纹理之间使用线性插值，并使用线性插值进行采样 |
 
-就像纹理过滤一样，我们可以使用glTexParameteri将过滤方式设置为前面四种提到的方法之一：
-
-```go
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-```
-
 一个常见的错误是，将放大过滤的选项设置为多级渐远纹理过滤选项之一。这样没有任何效果，因为多级渐远纹理主要是使用在纹理被缩小的情况下的：纹理放大不会使用多级渐远纹理，为放大过滤设置多级渐远纹理的选项会产生一个GL_INVALID_ENUM错误代码。
-
-**贴图模式**
-
-取值`GL_MODULATE、GL_DECAL、GL_BLEND`。默认情况下，贴图模式是`GL_MODULATE`，在这种模式下，OpenGL会根据当前的光照系统调整物体的色彩和明暗。第二种模式是GL_DECAL，在这种模式下所有的光照效果都是无效的，OpenGL将仅依据纹理贴图来绘制物体的表面。最后是GL_BLEND，这种模式允许我们使用混合纹理。在这种模式下，我们可以把当前纹理同一个颜色混合而得到一个新的纹理。我们可以调用glTexEnvi函数来设置当前贴图模式：
-
-```go
-glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, *TextureMode*);
-```
 
 **创建二维纹理图像**
 
 - `TexImage2D(target uint32, level int32, internalformat int32, width int32, height int32, border int32, format uint32, xtype uint32, pixels unsafe.Pointer)`
   - target ：纹理目标，`GL_TEXTURE_1D、GL_TEXTURE_2D、GL_TEXTURE_3D`
   - level ：指定多级渐远纹理的级别，如果你希望单独手动设置每个多级渐远纹理的级别的话。这里我们填0，也就是基本级别。
-  - internalformat：告诉OpenGL我们希望把纹理储存为何种格式，即哪种颜色模型。
+  - internalformat：告诉OpenGL我们希望把纹理储存为何种格式，即哪种颜色模型，比如RGBA。
   - width，height：纹理的宽度和高度。
   - border：总是被设为`0`（历史遗留的问题）。
-  - format：原图的颜色模型。
+  - format：原图的颜色模型，比如RGBA。
   - xtype：像素点数据的数据类型。
   - pixels：像素点数据数组的指针。
 
@@ -879,7 +858,7 @@ func Run() {
 
 ![image-20230602154206628](D:\dev\php\magook\trunk\server\md\img\image-20230602154206628.png)
 
-上面的例子中只有一个纹理，且片元着色器中只定义了一个纹理变量，所以我们不需要指定对应关系，如果我们定义了多个纹理变量呢？这意味着，两个纹理需要以一定的比例线性插值的展示出来，也就是混合在一起。我们先修改片元着色器
+上面的例子中只有一个纹理，且片元着色器中只定义了一个纹理变量，所以我们不需要指定对应关系，其实它默认对应的是`TEXTURE0`，如果我们定义了多个纹理变量呢？这意味着，两个纹理需要以一定的比例线性插值的展示出来，也就是混合在一起。我们先修改片元着色器
 
 ```go
 #version 410
@@ -897,7 +876,7 @@ void main() {
 }
 ```
 
-GLSL内建的mix函数需要接受两个值作为参数，并对它们根据第三个参数进行线性插值。。如果第三个值是`0.0`，它会返回第一个输入；如果是`1.0`，会返回第二个输入值。`0.2`会返回`80%`的第一个输入颜色和`20%`的第二个输入颜色，即返回两个纹理的混合色。
+GLSL内建的`mix`函数需要接受两个值作为参数，并对它们根据第三个参数进行线性插值。如果第三个值是`0.0`，它会返回第一个输入；如果是`1.0`，会返回第二个输入值。`0.2`会返回`80%`的第一个输入颜色和`20%`的第二个输入颜色，即返回两个纹理的混合色。
 
 然后我们需要指定哪个uniform采样器对应那个纹理。
 
@@ -968,7 +947,7 @@ void main() {
 | GL_REPEAT          | 对纹理的默认行为。重复纹理图像。                             |
 | GL_MIRRORED_REPEAT | 和GL_REPEAT一样，但每次重复图片是镜像放置的。                |
 | GL_CLAMP_TO_EDGE   | 纹理坐标会被约束在0到1之间，超出的部分会重复纹理坐标的边缘，产生一种边缘被拉伸的效果。 |
-| GL_CLAMP_TO_BORDER | 超出的坐标为用户指定的边缘颜色，不定义就没有。               |
+| GL_CLAMP_TO_BORDER | 超出的坐标为用户指定的边缘颜色，不定义就没有纹理色。         |
 
 为了演示纹理环绕，我们需要修改纹理坐标
 
@@ -998,6 +977,12 @@ void main() {
 ![image-20230602170443484](D:\dev\php\magook\trunk\server\md\img\image-20230602170443484.png)
 
 
+
+
+
+------
+
+**绘制立方体**
 
 
 
