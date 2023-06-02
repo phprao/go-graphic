@@ -344,7 +344,35 @@ gl.VertexAttribPointerWithOffset(2, 2, gl.FLOAT, false, 8*4, 6*4)
 gl.EnableVertexAttribArray(2)
 ```
 
+这里是通过默认位置来设置属性的，但是如果顶点着色器里面变量多的话，位置容易乱，因此我们最好是先获取到属性位置再来设置，因此先需要定义好顶点着色器的`in`变量。
 
+比如
+
+```go
+#version 410
+
+......
+
+in vec3 vert;
+in vec3 color;
+in vec2 vertTexCoord;
+
+......
+```
+
+```go
+vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))
+gl.EnableVertexAttribArray(vertAttrib)
+gl.VertexAttribPointerWithOffset(vertAttrib, 3, gl.FLOAT, false, 8*4, 0)
+
+colorAttrib := uint32(gl.GetAttribLocation(program, gl.Str("color\x00")))
+gl.EnableVertexAttribArray(colorAttrib)
+gl.VertexAttribPointerWithOffset(colorAttrib, 3, gl.FLOAT, false, 8*4, 3*4)
+
+texCoordAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertTexCoord\x00")))
+gl.EnableVertexAttribArray(texCoordAttrib)
+gl.VertexAttribPointerWithOffset(texCoordAttrib, 2, gl.FLOAT, false, 8*4, 6*4)
+```
 
 每一个点虽然设置了几个属性，但是默认情况下，出于性能考虑，这些属性都是不生效的disabled，意味着数据在着色器端是不可见的，哪怕数据已经上传到GPU，所以要手动调用`EnableVertexAttribArray`来逐个让它们生效。其参数index跟`VertexAttribPointer`一样。
 

@@ -125,6 +125,26 @@ func MakeVaoWithEbo(points []float32, indexs []uint32) uint32 {
 	return vao
 }
 
+func MakeVaoWithAttrib(points []float32) uint32 {
+	var vbo uint32
+	gl.GenBuffers(1, &vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, 4*len(points), gl.Ptr(points), gl.STATIC_DRAW)
+
+	var vao uint32
+	gl.GenVertexArrays(1, &vao)
+	gl.BindVertexArray(vao)
+
+	// Position attribute
+	gl.VertexAttribPointerWithOffset(0, 3, gl.FLOAT, false, 5*4, 0)
+	gl.EnableVertexAttribArray(0)
+	// TexCoord attribute
+	gl.VertexAttribPointerWithOffset(1, 2, gl.FLOAT, false, 5*4, 3*4)
+	gl.EnableVertexAttribArray(1)
+
+	return vao
+}
+
 func MakeVaoWithEboAndAttrib(points []float32, indexs []uint32) uint32 {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
