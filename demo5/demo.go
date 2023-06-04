@@ -52,25 +52,24 @@ func Run() {
 	// Load the texture
 	texture := util.MakeTexture("demo5/square.png")
 
-	// Configure the vertex data
-	var vao uint32
-	gl.GenVertexArrays(1, &vao)
-	gl.BindVertexArray(vao)
+	// var vao uint32
+	// gl.GenVertexArrays(1, &vao)
+	// gl.BindVertexArray(vao)
 
-	var vbo uint32
-	gl.GenBuffers(1, &vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(cubeVertices)*4, gl.Ptr(cubeVertices), gl.STATIC_DRAW)
+	// var vbo uint32
+	// gl.GenBuffers(1, &vbo)
+	// gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	// gl.BufferData(gl.ARRAY_BUFFER, len(cubeVertices)*4, gl.Ptr(cubeVertices), gl.STATIC_DRAW)
 
-	vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))
-	gl.EnableVertexAttribArray(vertAttrib)
-	gl.VertexAttribPointerWithOffset(vertAttrib, 3, gl.FLOAT, false, 5*4, 0)
+	// vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))
+	// gl.EnableVertexAttribArray(vertAttrib)
+	// gl.VertexAttribPointerWithOffset(vertAttrib, 3, gl.FLOAT, false, 5*4, 0)
 
-	texCoordAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertTexCoord\x00")))
-	gl.EnableVertexAttribArray(texCoordAttrib)
-	gl.VertexAttribPointerWithOffset(texCoordAttrib, 2, gl.FLOAT, false, 5*4, 3*4)
+	// texCoordAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertTexCoord\x00")))
+	// gl.EnableVertexAttribArray(texCoordAttrib)
+	// gl.VertexAttribPointerWithOffset(texCoordAttrib, 2, gl.FLOAT, false, 5*4, 3*4)
 
-	// vao := util.MakeVaoWithAttrib(cubeVertices)
+	vao := util.MakeVaoWithAttrib(cubeVertices)
 
 	// Configure global settings
 	gl.Enable(gl.DEPTH_TEST)
@@ -108,14 +107,14 @@ func Run() {
 }
 
 var vertexShader = `
-#version 330
+#version 410
+
+in vec3 vert;
+in vec2 vertTexCoord;
 
 uniform mat4 projection;
 uniform mat4 camera;
 uniform mat4 model;
-
-in vec3 vert;
-in vec2 vertTexCoord;
 
 out vec2 fragTexCoord;
 
@@ -126,7 +125,7 @@ void main() {
 ` + "\x00"
 
 var fragmentShader = `
-#version 330
+#version 410
 
 uniform sampler2D tex;
 
