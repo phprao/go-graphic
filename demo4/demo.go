@@ -98,8 +98,8 @@ func Run() {
 	window := util.InitGlfw(width, height, "texture2d")
 	defer glfw.Terminate()
 
-	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
-	vao := util.MakeVaoWithEboAndAttrib(vertices, indices)
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	vao := util.MakeVaoWithAttrib(program, vertices, indices, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vColor", Size: 3}, {Name: "vTexCoord", Size: 2}})
 	pointNum := int32(len(indices))
 	texture1 := util.MakeTexture("demo4/container.jpg")
 
@@ -110,9 +110,6 @@ func Run() {
 
 		gl.ActiveTexture(gl.TEXTURE0)
 		gl.BindTexture(gl.TEXTURE_2D, texture1)
-
-		gl.BindVertexArray(vao)
-		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 
 		gl.BindVertexArray(vao)
 		gl.DrawElements(gl.TRIANGLES, pointNum, gl.UNSIGNED_INT, gl.Ptr(indices))
@@ -127,8 +124,8 @@ func Run2() {
 	window := util.InitGlfw(width, height, "texture2d")
 	defer glfw.Terminate()
 
-	program := util.InitOpenGL(vertexShaderSource2, fragmentShaderSource2)
-	vao := util.MakeVaoWithEboAndAttrib(vertices, indices)
+	program, _ := util.InitOpenGL(vertexShaderSource2, fragmentShaderSource2)
+	vao := util.MakeVaoWithAttrib(program, vertices, indices, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vColor", Size: 3}, {Name: "vTexCoord", Size: 2}})
 	pointNum := int32(len(indices))
 	texture1 := util.MakeTexture("demo4/container.jpg")
 	texture2 := util.MakeTexture("demo4/awesomeface.png")
@@ -145,9 +142,6 @@ func Run2() {
 		gl.ActiveTexture(gl.TEXTURE1)
 		gl.BindTexture(gl.TEXTURE_2D, texture2)
 		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture2"+"\x00")), 1)
-
-		gl.BindVertexArray(vao)
-		gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 
 		gl.BindVertexArray(vao)
 		gl.DrawElements(gl.TRIANGLES, pointNum, gl.UNSIGNED_INT, gl.Ptr(indices))

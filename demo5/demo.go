@@ -28,7 +28,7 @@ func Run() {
 	window := util.InitGlfw(windowWidth, windowHeight, "Cube")
 	defer glfw.Terminate()
 
-	program := util.InitOpenGL(vertexShader, fragmentShader)
+	program, _ := util.InitOpenGL(vertexShader, fragmentShader)
 
 	gl.UseProgram(program)
 
@@ -52,24 +52,8 @@ func Run() {
 	// Load the texture
 	texture := util.MakeTexture("demo5/square.png")
 
-	// var vao uint32
-	// gl.GenVertexArrays(1, &vao)
-	// gl.BindVertexArray(vao)
-
-	// var vbo uint32
-	// gl.GenBuffers(1, &vbo)
-	// gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	// gl.BufferData(gl.ARRAY_BUFFER, len(cubeVertices)*4, gl.Ptr(cubeVertices), gl.STATIC_DRAW)
-
-	// vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))
-	// gl.EnableVertexAttribArray(vertAttrib)
-	// gl.VertexAttribPointerWithOffset(vertAttrib, 3, gl.FLOAT, false, 5*4, 0)
-
-	// texCoordAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vertTexCoord\x00")))
-	// gl.EnableVertexAttribArray(texCoordAttrib)
-	// gl.VertexAttribPointerWithOffset(texCoordAttrib, 2, gl.FLOAT, false, 5*4, 3*4)
-
-	vao := util.MakeVaoWithAttrib(cubeVertices)
+	// Make the VAO
+	vao := util.MakeVaoWithAttrib(program, cubeVertices, nil, []util.VertAttrib{{Name: "vert", Size: 3}, {Name: "vertTexCoord", Size: 2}})
 
 	// Configure global settings
 	gl.Enable(gl.DEPTH_TEST)
@@ -94,11 +78,10 @@ func Run() {
 		gl.UseProgram(program)
 		gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
-		gl.BindVertexArray(vao)
-
 		gl.ActiveTexture(gl.TEXTURE0)
 		gl.BindTexture(gl.TEXTURE_2D, texture)
 
+		gl.BindVertexArray(vao)
 		gl.DrawArrays(gl.TRIANGLES, 0, 6*2*3)
 
 		window.SwapBuffers()
@@ -120,7 +103,7 @@ out vec2 fragTexCoord;
 
 void main() {
     fragTexCoord = vertTexCoord;
-    gl_Position = projection * camera * model * vec4(vert, 1);
+	gl_Position = projection * camera * model * vec4(vert, 1);
 }
 ` + "\x00"
 

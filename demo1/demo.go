@@ -78,10 +78,38 @@ func Run() {
 
 	KeyPressAction(window)
 
-	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
 
-	vao := util.MakeVao(square)
-	pointNum := int32(len(square))
+	vao := util.MakeVaoWithAttrib(program, triangle, nil, []util.VertAttrib{{Name: "vp", Size: 3}})
+	pointNum := int32(len(triangle)) / 3
+
+	glfw.SwapInterval(1)
+
+	for !window.ShouldClose() {
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.BindVertexArray(vao)
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum)
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}
+
+func Run1() {
+	runtime.LockOSThread()
+
+	window := util.InitGlfw(width, height, "Conway's Game of Life")
+
+	defer glfw.Terminate()
+
+	KeyPressAction(window)
+
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+
+	vao := util.MakeVaoWithAttrib(program, square, nil, []util.VertAttrib{{Name: "vp", Size: 3}})
+	pointNum := int32(len(square)) / 3
 
 	glfw.SwapInterval(1)
 
@@ -106,9 +134,9 @@ func Run2() {
 
 	KeyPressAction(window)
 
-	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
 
-	vao := util.MakeVaoWithEbo(square2, indexs)
+	vao := util.MakeVaoWithAttrib(program, square2, indexs, []util.VertAttrib{{Name: "vp", Size: 3}})
 	pointNum := int32(len(indexs))
 
 	glfw.SwapInterval(1)

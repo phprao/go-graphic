@@ -64,7 +64,7 @@ func Run() {
 	window := util.InitGlfw(width, height, "Conway's Game of Life")
 	defer glfw.Terminate()
 
-	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
 
 	cells := makeCells()
 

@@ -302,12 +302,20 @@ func makeVao(points []float32) uint32 {
 }
 ```
 
+`BufferData`第四个参数指定了我们希望显卡如何管理给定的数据。它有三种形式：
+
+- `GL_STATIC_DRAW `：数据不会或几乎不会改变。
+- `GL_DYNAMIC_DRAW`：数据会被改变很多。
+- `GL_STREAM_DRAW` ：数据每次绘制时都会改变。
+
+三角形的位置数据不会改变，每次渲染调用时都保持原样，所以它的使用类型最好是GL_STATIC_DRAW。如果，比如说一个缓冲中的数据将频繁被改变，那么使用的类型就是GL_DYNAMIC_DRAW或GL_STREAM_DRAW，这样就能确保显卡把数据放在能够高速写入的内存部分。
+
 - `VertexAttribPointer(index uint32, size int32, xtype uint32, normalized bool, stride int32, pointer unsafe.Pointer)`
-每一个顶点有会有多个属性，比如常用的有：
-1、位置属性，也就是坐标，包括X, Y, Z三个值。
-2、颜色属性，如果是RGB，那就是三个值，如果是RGBA，那就是四个值。
-3、纹理坐标，S和T，是两个值。
-4、其他自定义属性。
+  每一个顶点有会有多个属性，比如常用的有：
+  1、位置属性，也就是坐标，包括X, Y, Z三个值。
+  2、颜色属性，如果是RGB，那就是三个值，如果是RGBA，那就是四个值。
+  3、纹理坐标，S和T，是两个值。
+  4、其他自定义属性。
 
 我们在定义顶点数据的时候会把这些数据统统注入一个数组中即VBO，比如：
 ```go
@@ -344,7 +352,27 @@ gl.VertexAttribPointerWithOffset(2, 2, gl.FLOAT, false, 8*4, 6*4)
 gl.EnableVertexAttribArray(2)
 ```
 
-这里是通过默认位置来设置属性的，但是如果顶点着色器里面变量多的话，位置容易乱，因此我们最好是先获取到属性位置再来设置，因此先需要定义好顶点着色器的`in`变量。
+这里是通过默认位置来设置属性的，但是如果`顶点着色器`里面变量多的话，位置容易乱，而且经过测试，这个位置顺序是在main中使用的先后顺序，比如：
+
+```go
+#version 410
+
+in vec3 vert;
+in vec2 vertTexCoord;
+
+uniform mat4 projection;
+uniform mat4 camera;
+uniform mat4 model;
+
+out vec2 fragTexCoord;
+
+void main() {
+	fragTexCoord = vertTexCoord;
+    gl_Position = projection * camera * model * vec4(vert, 1);
+}
+```
+
+我数据的顺序是先坐标位置，后纹理坐标，顶点着色器中也是先定义`vert`后定义`vertTexCoord`，但是在main中，先使用的`vertTexCoord`，后使用的`vert`，最后通过`vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))`获取到属性位置却是`vert为1，vertTexCoord为0`，也可能它内部是别的机制来设定暂时不得而知，但是盲目的设定index是不合理的。因此我们最好是先获取到属性位置再来设置，因此先需要定义好顶点着色器的`in`变量。
 
 比如
 
@@ -402,6 +430,8 @@ vertexShaderSource = `
 
 如果顶点属性中有颜色和纹理属性，那么需要定义out变量，然后out变量会被传给片元着色器的in变量。
 
+`vec4`的四个分量分别为`x,y,x,w`，其中`w`可以理解为齐次坐标，目前用不到，但是要设置为`1.0`
+
 #### 片元着色器
 片元着色器的作用是计算出每一个像素点最终的颜色，通常片段着色器会包含3D场景的一些额外的数据，如光线，阴影等。
 
@@ -421,7 +451,30 @@ fragmentShaderSource = `
 
 程序没有输入变量，因此是固定颜色并输出给下游处理。
 
+
+
+下面，你会看到一个图形渲染管线的每个阶段的抽象展示。要注意蓝色部分代表的是我们可以注入自定义的着色器的部分。
+
+![image-20230605084307113](D:\dev\php\magook\trunk\server\md\img\image-20230605084307113.png)
+
+`顶点着色器`主要的目的是把3D坐标转为另一种3D坐标，同时顶点着色器允许我们对顶点属性进行一些基本处理。
+
+`图元装配(Primitive Assembly)`阶段将顶点着色器输出的所有顶点作为输入（如果是GL_POINTS，那么就是一个顶点），并把所有的点装配成指定图元的形状。
+
+`几何着色器`把图元形式的一系列顶点的集合作为输入，它可以通过产生新顶点构造出新的（或是其它的）图元来生成其他形状。
+
+几何着色器的输出会被传入`光栅化阶段(Rasterization Stage)`，这里它会把图元映射为最终屏幕上相应的像素，生成供片段着色器(Fragment Shader)使用的片段(Fragment)。在片段着色器运行之前会执行裁切(Clipping)。裁切会丢弃超出你的视图以外的所有像素，用来提升执行效率。OpenGL中的一个片段是OpenGL渲染一个像素所需的所有数据。
+
+`片段着色器`的主要目的是计算一个像素的最终颜色，这也是所有OpenGL高级效果产生的地方。通常，片段着色器包含3D场景的数据（比如光照、阴影、光的颜色等等），这些数据可以被用来计算最终像素的颜色。
+
+在所有对应颜色值确定以后，最终的对象将会被传到最后一个阶段，我们叫做Alpha测试和混合(Blending)阶段。这个阶段检测片段的对应的深度（和模板(Stencil)）值（后面会讲），用它们来判断这个像素是其它物体的前面还是后面，决定是否应该丢弃。这个阶段也会检查alpha值（alpha值定义了一个物体的透明度）并对物体进行混合(Blend)。所以，即使在片段着色器中计算出来了一个像素输出的颜色，在渲染多个三角形的时候最后的像素颜色也可能完全不同。
+
+可以看到，图形渲染管线非常复杂，它包含很多可配置的部分。然而，对于大多数场合，我们只需要配置顶点和片段着色器就行了。几何着色器是可选的，通常使用它默认的着色器就行了。
+
+在现代OpenGL中，我们**必须**定义至少一个顶点着色器和一个片段着色器（因为GPU中没有默认的顶点/片段着色器）。
+
 #### 画图
+
 OpenGL中所有的图形都是通过分解成三角形的方式进行绘制。
 
 OpenGL的坐标系为右手定则，坐标归一化为[-1,1]。
@@ -862,7 +915,7 @@ func Run() {
 	window := util.InitGlfw(width, height, "texture2d")
 	defer glfw.Terminate()
 
-	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
 	vao := util.MakeVaoWithEboAndAttrib(vertices, indices)
 	pointNum := int32(len(indices))
 	texture1 := util.MakeTexture("demo4/container.jpg")
@@ -914,7 +967,7 @@ func Run() {
 	window := util.InitGlfw(width, height, "texture2d")
 	defer glfw.Terminate()
 
-	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
 	vao := util.MakeVaoWithEboAndAttrib(vertices, indices)
 	pointNum := int32(len(indices))
 	texture1 := util.MakeTexture("demo4/container.jpg")

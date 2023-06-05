@@ -66,10 +66,10 @@ func Run() {
 	window := util.InitGlfw(width, height, "texture2d")
 	defer glfw.Terminate()
 
-	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
-	vao := util.MakeVaoWithEboAndAttrib(vertices, indices)
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	vao := util.MakeVaoWithAttrib(program, vertices, indices, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vColor", Size: 3}, {Name: "vTexCoord", Size: 2}})
 	pointNum := int32(len(indices))
-	texture1 := util.MakeTexture("demo4/round.jpg")
+	texture1 := util.MakeTexture("demo6/round.jpg")
 
 	for !window.ShouldClose() {
 		gl.ClearColor(0.2, 0.3, 0.3, 1.0)

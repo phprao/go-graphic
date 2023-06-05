@@ -108,7 +108,7 @@ func Run() {
 	}
 	window.SetSizeCallback(sizeCallback)
 
-	program := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
 
 	cells := makeCells()
 

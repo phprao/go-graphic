@@ -104,71 +104,39 @@ func MakeVao(points []float32) uint32 {
 	return vao
 }
 
-func MakeVaoWithEbo(points []float32, indexs []uint32) uint32 {
-	var vbo uint32
-	gl.GenBuffers(1, &vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(points), gl.Ptr(points), gl.STATIC_DRAW)
-
-	var ebo uint32
-	gl.GenBuffers(1, &ebo)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(indexs), gl.Ptr(indexs), gl.STATIC_DRAW)
-
-	var vao uint32
-	gl.GenVertexArrays(1, &vao)
-	gl.BindVertexArray(vao)
-
-	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
-	gl.EnableVertexAttribArray(0)
-
-	return vao
+type VertAttrib struct {
+	Name string
+	Size int32
 }
 
-func MakeVaoWithAttrib(points []float32) uint32 {
+func MakeVaoWithAttrib(program uint32, points []float32, indexs []uint32, vertAttribSlice []VertAttrib) uint32 {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	gl.BufferData(gl.ARRAY_BUFFER, 4*len(points), gl.Ptr(points), gl.STATIC_DRAW)
 
-	var vao uint32
-	gl.GenVertexArrays(1, &vao)
-	gl.BindVertexArray(vao)
-
-	// Position attribute
-	gl.VertexAttribPointerWithOffset(0, 3, gl.FLOAT, false, 5*4, 0)
-	gl.EnableVertexAttribArray(0)
-	// TexCoord attribute
-	gl.VertexAttribPointerWithOffset(1, 2, gl.FLOAT, false, 5*4, 3*4)
-	gl.EnableVertexAttribArray(1)
-
-	return vao
-}
-
-func MakeVaoWithEboAndAttrib(points []float32, indexs []uint32) uint32 {
-	var vbo uint32
-	gl.GenBuffers(1, &vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, 4*len(points), gl.Ptr(points), gl.STATIC_DRAW)
-
-	var ebo uint32
-	gl.GenBuffers(1, &ebo)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(indexs), gl.Ptr(indexs), gl.STATIC_DRAW)
+	if indexs != nil {
+		var ebo uint32
+		gl.GenBuffers(1, &ebo)
+		gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+		gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, 4*len(indexs), gl.Ptr(indexs), gl.STATIC_DRAW)
+	}
 
 	var vao uint32
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
 
-	// Position attribute
-	gl.VertexAttribPointerWithOffset(0, 3, gl.FLOAT, false, 8*4, 0)
-	gl.EnableVertexAttribArray(0)
-	// Color attribute
-	gl.VertexAttribPointerWithOffset(1, 3, gl.FLOAT, false, 8*4, 3*4)
-	gl.EnableVertexAttribArray(1)
-	// TexCoord attribute
-	gl.VertexAttribPointerWithOffset(2, 2, gl.FLOAT, false, 8*4, 6*4)
-	gl.EnableVertexAttribArray(2)
+	var stride int32
+	for _, v := range vertAttribSlice {
+		stride += v.Size
+	}
+	var offset uintptr
+	for _, v := range vertAttribSlice {
+		vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str(v.Name+"\x00")))
+		gl.EnableVertexAttribArray(vertAttrib)
+		gl.VertexAttribPointerWithOffset(vertAttrib, v.Size, gl.FLOAT, false, stride*4, offset*4)
+		offset += uintptr(v.Size)
+	}
 
 	return vao
 }
@@ -198,7 +166,7 @@ func MakeTextureTexParameteri() {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 }
 
-func InitOpenGL(vertexShaderSource, fragmentShaderSource string) (program uint32) {
+func InitOpenGL(vertexShaderSource, fragmentShaderSource string) (program uint32, err error) {
 	if err := gl.Init(); err != nil {
 		panic(err)
 	}
@@ -224,5 +192,17 @@ func InitOpenGL(vertexShaderSource, fragmentShaderSource string) (program uint32
 	}
 
 	gl.LinkProgram(program)
-	return program
+
+	var status int32
+	gl.GetProgramiv(program, gl.LINK_STATUS, &status)
+	if status == gl.FALSE {
+		var logLength int32
+		gl.GetProgramiv(program, gl.INFO_LOG_LENGTH, &logLength)
+		log := strings.Repeat("\x00", int(logLength+1))
+		gl.GetProgramInfoLog(program, logLength, nil, gl.Str(log))
+
+		return 0, fmt.Errorf("failed to link shader program: %v", log)
+	}
+
+	return program, nil
 }
