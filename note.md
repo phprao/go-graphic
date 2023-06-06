@@ -426,11 +426,23 @@ vertexShaderSource = `
 着色器中经常看到 vec2,vec3,vec4 等类型，代表有几个分量或者几个数，此处vp是坐标，有x,y,x三个分量。
 关键字 in 表明这是输入参数，out为输出参数。
 
+`vec`代表向量类型`vector`。另外`mat`为矩阵类型`matrix`，比如`mat4`。
+
+| 类型    | 含义                            |
+| :------ | :------------------------------ |
+| `vecn`  | 包含`n`个float分量的默认向量    |
+| `bvecn` | 包含`n`个bool分量的向量         |
+| `ivecn` | 包含`n`个int分量的向量          |
+| `uvecn` | 包含`n`个unsigned int分量的向量 |
+| `dvecn` | 包含`n`个double分量的向量       |
+
 输入参数来自VAO中的一个顶点的全部属性，此处只有坐标属性，因此只有一个变量，如果有多个属性，需要多个in变量。
 
 如果顶点属性中有颜色和纹理属性，那么需要定义out变量，然后out变量会被传给片元着色器的in变量。
 
 `vec4`的四个分量分别为`x,y,x,w`，其中`w`可以理解为齐次坐标，目前用不到，但是要设置为`1.0`
+
+关于着色器更详细的说明 [着色器](https://learnopengl-cn.github.io/01%20Getting%20started/05%20Shaders/)
 
 #### 片元着色器
 片元着色器的作用是计算出每一个像素点最终的颜色，通常片段着色器会包含3D场景的一些额外的数据，如光线，阴影等。
@@ -609,7 +621,7 @@ func KeyPressAction(window *glfw.Window) {
 在黑的时候按R之后没有闪屏，在红的时候按R之后依旧闪屏  ?????????
 
 - `gl.PolygonMode(face uint32, mode uint32)`
-在调用`gl.DrawArrays`类似函数来画图之前，我们还可以设置多边形模式，其参数`face`是固定的`gl.FRONT_AND_BACK`，而`mode`的取值有三个`gl.POINT, gl.LINE, gl.FILL`，对应的效果分别是画三个点，画三角形的线，画三角形并填充颜色。默认的`mode`是`gl.FILL`。
+在调用`gl.DrawArrays`类似函数来画图之前，我们还可以设置多边形模式，其参数`face`是固定的`gl.FRONT_AND_BACK`，意思是要绘制的多边形的正面和反面，而`mode`的取值有三个`gl.POINT, gl.LINE, gl.FILL`，对应的效果分别是画三个点，画三角形的线，画三角形并填充颜色。默认的`mode`是`gl.FILL`。
 
 上面的例子是画一个三角形，如果要画一个正方形，只需要再增加三个顶点即可
 ```go
@@ -667,6 +679,8 @@ gl.BindVertexArray(vao)
 gl.DrawElements(gl.TRIANGLES, int32(len(indexs)), gl.UNSIGNED_INT, gl.Ptr(indexs))
 ```
 
+一个着色器程序 program 只能 Attach 一组顶点着色器，几何着色器，片元着色器；但是有时候我们需要使用不同的着色器来渲染不同的部分，这个时候就需要创建多个 program，在使用的时候，需要用到哪个 program 就 Use 哪个。
+
 
 -------------------------------------------------------------------------------------------------------
 
@@ -706,7 +720,7 @@ vertices = []float32{
 | GL_REPEAT          | 对纹理的默认行为。重复纹理图像。                             |
 | GL_MIRRORED_REPEAT | 和GL_REPEAT一样，但每次重复图片是镜像放置的。                |
 | GL_CLAMP_TO_EDGE   | 纹理坐标会被约束在0到1之间，超出的部分会重复纹理坐标的边缘，产生一种边缘被拉伸的效果。 |
-| GL_CLAMP_TO_BORDER | 超出的坐标为用户指定的边缘颜色。                             |
+| GL_CLAMP_TO_BORDER | 超出的坐标为用户指定的边缘颜色，不定义就没有纹理色。         |
 
 具体效果，下文会有示例
 
@@ -714,6 +728,8 @@ vertices = []float32{
  gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
  gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
  ```
+
+这里的`i`是`int`的意思，表示设置的值是`int`类型。如果是3D环绕，还有一个`r`坐标。
 
 **纹理过滤**
 
@@ -892,6 +908,36 @@ void main() {
 
 片元着色器，虽然得到了纹理坐标，但是它还需要纹理图片才能得到颜色值，GLSL有一个供纹理对象使用的内建数据类型，叫做采样器(Sampler)，它以纹理类型作为后缀，比如sampler1D、sampler3D，或在我们的例子中的sampler2D。我们可以简单声明一个uniform sampler2D把一个纹理添加到片段着色器中，稍后我们会把纹理赋值给这个uniform。
 
+`glUniform**`相关的函数可以从应用程序中（也就是CPU）向着色器传入参数。`uniform 类型 变量名`
+
+```go
+uniform int x1;
+uniform float x2;
+
+uniform sampler2D ourTexture1;
+赋值语句为：gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture1\x00")), 0)
+
+uniform vec4 aColor;
+赋值语句为：gl.Uniform4f(gl.GetUniformLocation(program, gl.Str("ourColor\x00")), 1.0, 0.0, 0.0, 1.0)
+
+uniform mat4 projection;
+uniform mat4 camera;
+uniform mat4 model;
+赋值语句为：gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("camera\x00")), 1, false, &camera[0])
+```
+
+`注意`，给uniform赋值之前，必须先调用`gl.UseProgram(program)`来使用这个程序。
+
+| uniform函数后缀 | 含义                                 |
+| :-------------- | :----------------------------------- |
+| `f`             | 函数需要一个float作为它的值          |
+| `i`             | 函数需要一个int作为它的值            |
+| `ui`            | 函数需要一个unsigned int作为它的值   |
+| `3f`            | 函数需要3个float作为它的值           |
+| `fv`            | 函数需要一个float向量/数组作为它的值 |
+
+Uniform是一种从CPU中的应用向GPU中的着色器发送数据的方式，但uniform和顶点属性有些不同。首先，uniform是全局的(Global)。全局意味着uniform变量必须在每个着色器程序对象中都是独一无二的，而且它可以被着色器程序的任意着色器在任意阶段访问。第二，无论你把uniform值设置成什么，uniform会一直保存它们的数据，直到它们被重置或更新。
+
 ```go
 #version 410
 
@@ -904,6 +950,8 @@ uniform sampler2D ourTexture;
 
 void main() {
     frag_colour = texture(ourTexture, fTexCoord);
+    // 或者使纹理色和顶点颜色做一个混合
+    // frag_colour = texture(ourTexture, fTexCoord) * vec4(fColor, 1.0);
 }
 ```
 
@@ -980,10 +1028,12 @@ func Run() {
 
 		gl.ActiveTexture(gl.TEXTURE0)
 		gl.BindTexture(gl.TEXTURE_2D, texture1)
+         // 给 ourTexture1 赋值为0，它就是第0号采样器，即gl.TEXTURE0
 		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture1"+"\x00")), 0)
 
 		gl.ActiveTexture(gl.TEXTURE1)
 		gl.BindTexture(gl.TEXTURE_2D, texture2)
+         // 给 ourTexture1 赋值为1，它就是第1号采样器，即gl.TEXTURE1
 		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture2"+"\x00")), 1)
 
 		gl.BindVertexArray(vao)
@@ -1057,21 +1107,230 @@ void main() {
 
 ![image-20230602170443484](D:\dev\php\magook\trunk\server\md\img\image-20230602170443484.png)
 
+```go
+gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_BORDER)
+gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_BORDER)
+c := []float32{1.0, 1.0, 0.0, 1.0}
+gl.TexParameterfv(gl.TEXTURE_2D, gl.TEXTURE_BORDER_COLOR, &c[0])
+```
 
+![image-20230605155121406](D:\dev\php\magook\trunk\server\md\img\image-20230605155121406.png)
 
 
 
 ------
 
-**绘制立方体**
+**变换**
+
+矩阵操作与向量操作：https://learnopengl-cn.github.io/01%20Getting%20started/07%20Transformations/
+
+在OpenGL中，由于某些原因我们通常使用**4×4**的变换矩阵，而其中最重要的原因就是大部分的向量都是4分量的。
+
+矩阵实际上就是一个数组
+
+```go
+type Mat4 [16]float32
+
+func Ident4() Mat4 {
+	return Mat4{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}
+}
+```
+
+**向量的缩放**
+
+![image-20230606085918813](D:\dev\php\magook\trunk\server\md\img\image-20230606085918813.png)
+
+**向量的位移**
+
+![image-20230606090047039](D:\dev\php\magook\trunk\server\md\img\image-20230606090047039.png)
+
+**齐次坐标(Homogeneous Coordinates)**
+
+向量的w分量也叫`齐次坐标`。想要从齐次向量得到3D向量，我们可以把x、y和z坐标分别除以w坐标。我们通常不会注意这个问题，因为w分量通常是1.0。使用齐次坐标有几点好处：它允许我们在3D向量上进行位移（如果没有w分量我们是不能位移向量的）。
+
+如果一个向量的齐次坐标是0，这个坐标就是方向向量(Direction Vector)，因为w坐标是0，这个向量就不能位移（译注：这也就是我们说的不能位移一个方向）。
+
+有了位移矩阵我们就可以在3个方向(x、y、z)上移动物体，它是我们的变换工具箱中非常有用的一个变换矩阵。
+
+**向量的旋转**
+
+![image-20230606091146512](D:\dev\php\magook\trunk\server\md\img\image-20230606091146512.png)
+
+沿任意轴旋转
+
+![image-20230606091515739](D:\dev\php\magook\trunk\server\md\img\image-20230606091515739.png)
+
+建议您在组合矩阵时，先进行缩放操作，然后是旋转，最后才是位移，否则它们会（消极地）互相影响。
+
+GLM是Open**GL** **M**athematics的缩写，GLM库从0.9.9版本起，默认会将矩阵类型初始化为一个零矩阵（所有元素均为0），而不是单位矩阵（对角元素为1，其它元素为0）。
+
+对应golang中的包`github.com/go-gl/mathgl/mgl32`
+
+```go
+// 生成一个向量
+v4 = mgl32.Vec4{1, 1, 1, 1}
+v3 = mgl32.Vec3{3, 3, 3}
+v4 = v3.Vec4(1)
+v2 = v3.Vec2()
+
+// 向量的Add, Sub, Mul, Dot, Cross, Len
+
+// 矩阵之间点乘
+A.Mul4(B)
+
+// 生成4*4的单位矩阵
+model := mgl32.Ident4()
+
+// 生成一个沿向量(3,4,5)移动的变换矩阵trans3d
+/*
+[1, 0, 0, 3]
+[0, 1, 0, 4]
+[0, 0, 1, 5]
+[0, 0, 0, 1]
+*/
+trans3d := mgl32.Translate3D(3,4,5)
+// 使向量vec3(1,2,3)沿着向量(3,4,5)移动
+// 结果 (4,6,8)
+mgl32.TransformCoordinate(mgl32.Vec3{1, 2, 3}, trans3d)
+
+// 生成缩放比例(2,2,2)的变换矩阵
+// 如果缩放的比例是负值，会导致图像翻转
+/*
+[2, 0, 0, 0]
+[0, 2, 0, 0]
+[0, 0, 2, 0]
+[0, 0, 0, 1]
+*/
+scale3d := mgl32.Scale3D(2, 2, 2)
+// 使向量vec3(1,2,3)缩放(2,2,2)
+// 结果 (2,4,6)
+mgl32.TransformCoordinate(mgl32.Vec3{1, 2, 3}, scale3d)
+
+// 沿轴(3,3,3)旋转20度的变化矩阵
+/*
+[5.735343 2.588426 8.066097 0.000000]
+[8.066097 5.735343 2.588426 0.000000]
+[2.588426 8.066097 5.735343 0.000000]
+[0.000000 0.000000 0.000000 1.000000]
+*/
+rotate3d := mgl32.HomogRotate3D(mgl32.DegToRad(20), mgl32.Vec3{3, 3, 3})
+// 使向量vec3(1,2,3)沿轴(3,3,3)旋转20度
+// 结果 (35.11049, 27.302063, 35.92665)
+mgl32.TransformCoordinate(mgl32.Vec3{1, 2, 3}, rotate3d)
+```
+
+因为底层的`math.Sin(angle)`接受的是弧度`radian`，而不是度数`degree`，所以此处也要传弧度值，转换函数`mgl32.RadToDeg() 和 mgl32.DegToRad()`。
+
+变换矩阵类型为`mgl32.Mat4`类型，我们使用uniform将其传入到着色器中
+
+```go
+model := mgl32.Ident4()
+modelUniform := gl.GetUniformLocation(program, gl.Str("model\x00"))
+gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
+```
+
+```go
+uniform mat4 model;
+```
+
+示例：对现有纹理，实现先缩放，再旋转，再移动的效果
+
+![image-20230602161541893](D:\dev\php\magook\trunk\server\md\img\image-20230602161541893.png)
+
+操作后效果
+
+![image-20230606150007980](D:\dev\php\magook\trunk\server\md\img\image-20230606150007980.png)
+
+主要代码：
+
+```go
+for !window.ShouldClose() {
+    ......
+    gl.UseProgram(program)
+
+    rotate := mgl32.HomogRotate3D(mgl32.DegToRad(90), mgl32.Vec3{0, 0, 1})
+    scale := mgl32.Scale3D(0.5, 0.5, 0.5)
+    translate := mgl32.Translate3D(0.5, -0.5, 0)
+    // 顺序要反着看：依次是 scale，rotate，translate
+    transe := translate.Mul4(rotate).Mul4(scale)
+    gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+    ......
+}
+```
+
+顶点着色器
+
+```go
+......
+uniform mat4 transe;
+......
+void main() {
+    gl_Position = transe * vec4(vPosition, 1.0);
+    ......
+}
+```
+
+我们可以让旋转的弧度随着时间变动，这样图像就旋转起来了
+
+```go
+rotate := mgl32.HomogRotate3D(float32(glfw.GetTime()), mgl32.Vec3{0, 0, 1})
+```
+
+示例2：在一个窗口中画两个箱子，一个在不停旋转，一个在不停缩小放大
+
+```go
+for !window.ShouldClose() {
+    gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+    gl.Clear(gl.COLOR_BUFFER_BIT)
+    gl.UseProgram(program)
+
+    gl.ActiveTexture(gl.TEXTURE0)
+    gl.BindTexture(gl.TEXTURE_2D, texture1)
+    gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture1"+"\x00")), 0)
+
+    gl.ActiveTexture(gl.TEXTURE1)
+    gl.BindTexture(gl.TEXTURE_2D, texture2)
+    gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture2"+"\x00")), 1)
+
+    gl.BindVertexArray(vao)
+
+    // 第一个箱子
+    rotate := mgl32.HomogRotate3D(float32(glfw.GetTime()), mgl32.Vec3{0, 0, 1}) // 旋转效果
+    scale := mgl32.Scale3D(0.5, 0.5, 0.5)
+    translate := mgl32.Translate3D(0.5, -0.5, 0)
+    transe := translate.Mul4(rotate).Mul4(scale)
+    gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+    gl.DrawElements(gl.TRIANGLES, pointNum, gl.UNSIGNED_INT, gl.Ptr(indices))
+
+    // 第二个箱子
+    rotate2 := mgl32.HomogRotate3D(mgl32.DegToRad(90), mgl32.Vec3{0, 0, 1})
+    s := float32(math.Sin(glfw.GetTime()))
+    scale2 := mgl32.Scale3D(s, s, s)
+    translate2 := mgl32.Translate3D(-0.5, 0.5, 0)
+    transe2 := translate2.Mul4(rotate2).Mul4(scale2)
+    gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe2[0])
+    gl.DrawElements(gl.TRIANGLES, pointNum, gl.UNSIGNED_INT, gl.Ptr(indices))
+
+    glfw.PollEvents()
+    window.SwapBuffers()
+}
+```
+
+![image-20230606153726365](D:\dev\php\magook\trunk\server\md\img\image-20230606153726365.png)
 
 
 
 ------
 
+**坐标系统**
 
+
+
+------
 
 #### 摄像机
+
+
 
 ------
 

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/phprao/go-graphic/demo7"
+	"github.com/phprao/go-graphic/demo4"
 )
 
 func main() {
-	demo7.Run()
+	demo4.Run4()
 }
