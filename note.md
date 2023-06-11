@@ -59,7 +59,7 @@ GLFW文档（最好用）：https://www.glfw.org/docs/latest/
 
 #### 初始化glfw
 glfw是用来操作窗口的，因此需要先初始化。
-glfw相关函数需要在主线程 main thread 中运行，因此需要在主goroutine中调用`runtime.LockOSThread()`，然后再调用glfw。
+glfw相关函数需要在主线程 `main thread` 中运行，因此需要在`主 goroutine` 中调用`runtime.LockOSThread()`，然后再调用 glfw。
 
 ```go
 func initGlfw() *glfw.Window {
@@ -81,7 +81,9 @@ func initGlfw() *glfw.Window {
 ```
 
 - `glfw.WindowHint(target Hint, hint int)`
-对应的函数是 glfwWindowHint()，设置窗口和OpenGL上下文的一些属性值。具体有哪些属性可以参考 https://www.glfw.org/docs/latest/window_guide.html#window_hints。
+  对应的函数是 `glfwWindowHint()`，设置窗口和OpenGL上下文的一些属性值。具体有哪些属性可以参考
+
+   https://www.glfw.org/docs/latest/window_guide.html#window_hints。
 
 > GLFW_CONTEXT_VERSION_MAJOR and GLFW_CONTEXT_VERSION_MINOR specify the client API version that the created context must be compatible with. The exact behavior of these hints depend on the requested client API.
 >
@@ -161,7 +163,7 @@ sw := glfw.GetPrimaryMonitor().GetVideoMode().Width // 1920
 sh := glfw.GetPrimaryMonitor().GetVideoMode().Height // 1080
 window.SetPos((sw-width)/2, (sh-height)/2)
 ```
-其实在`CreateWindow`的时候窗口就展示了出来，而`SetPos`就会看到窗口移动到中心了，我希望一出来就是中心的，没有移动的过程可以先隐藏，再显示。
+其实在`CreateWindow`的时候窗口就展示了出来，而`SetPos`就会看到窗口移动到中心了，我希望一出来就是中心的，没有移动的过程，可以先隐藏，再显示。
 ```go
 glfw.WindowHint(glfw.Visible, glfw.False)
 
@@ -177,10 +179,11 @@ window.SetPos((sw-width)/2, (sh-height)/2)
 window.Show()
 ```
 
-- window.MakeContextCurrent()
+- `window.MakeContextCurrent()`
 我们在glfw官网搜`glfwMakeContextCurrent`，解释如下：
 
 `void glfwMakeContextCurrent(GLFWwindow *window)`
+
 > This function makes the OpenGL or OpenGL ES context of the specified window current on the calling thread. A context must only be made current on a single thread at a time and each thread can have only a single current context at a time.
 > 
 > When moving a context between threads, you must make it non-current on the old thread before making it current on the new one.
@@ -192,7 +195,7 @@ window.Show()
 > Before you can use the OpenGL API, you must have a current OpenGL context.
 > The context will remain current until you make another context current or until the window owning the current context is destroyed.
 
-在使用 opengl api 之前需要先设置上下文，可以将当前窗口的上下文绑定为当前上下文。因为新创建的上下文不能被使用，需要绑定为Current Context才能使用。任意时刻，一个线程只能有一个Current Context与之绑定，同时，任意时刻，一个Current Context只能有一个线程与之绑定。
+在使用 opengl api 之前需要先设置上下文，可以将当前窗口的上下文绑定为当前上下文。因为新创建的上下文不能直接使用，需要绑定为`Current Context`才能使用。任意时刻，一个线程只能有一个Current Context与之绑定，同时，任意时刻，一个Current Context只能有一个线程与之绑定。
 
 OpenGL自身是一个巨大的状态机(State Machine)：一系列的变量描述OpenGL此刻应当如何运行。OpenGL的状态通常被称为OpenGL上下文(Context)。我们通常使用设置选项和操作缓冲的方式去更改OpenGL状态。最后，我们使用当前OpenGL上下文来渲染。
 
@@ -239,26 +242,19 @@ func initOpenGL() uint32 {
 ```
 
 #### 构建VBO，VAO，EBO
-VAO和VBO都是用来存储顶点信息的，并把这些信息送入顶点着色器。一个VAO可以对应多个VBO。
+VAO和VBO都是用来存储顶点信息的，并把这些信息送入顶点着色器。
 
 在OpenGL程序中，同时只会有一个VAO被绑定到opengl，当然你可以操作完一个之后再绑定到另一个VAO。
 
-VBO是顶点缓冲对象(Vertex Buffer Objects, VBO)，包含了顶点的3d坐标和颜色。但它们是按同类数组存储的，存放在一片显存空间中，程序并不知道这些数字哪个代表3d坐标，哪个代表颜色。
+VBO是顶点缓冲对象(Vertex Buffer Objects, VBO)，包含了顶点的3D坐标、颜色、纹理坐标等信息。但它们是按数组存储的，存放在一片显存空间中，程序并不知道这些数字哪个代表3D坐标，哪个代表颜色。
 
-VAO是顶点数组对象(Vertex Array Object, VAO)，用来表示这些数字的第几位分别代表顶点的什么属性。比如这些数字的第1-3位代表3d的xyz坐标，第4-7位代表rbg颜色和透明度。
+VAO是顶点数组对象(Vertex Array Object, VAO)，用来表示这些数字的第几位分别代表顶点的什么属性。比如这些数字的第1-3位代表3D的xyz坐标，第4-7位代表rbg颜色和透明度。
 
-EBO是元素缓冲对象(Element Buffer Object，EBO)，EBO是一个缓冲区，就像一个VBO一样，它存储 OpenGL 用来决定要绘制哪些顶点的索引,设置顶点的绘制顺序。EBO由VAO进行绑定
+EBO是元素缓冲对象(Element Buffer Object，EBO)，EBO是一个缓冲区，就像一个VBO一样，它存储 OpenGL 用来决定要绘制哪些顶点的索引，设置顶点的绘制顺序。
+
 ![image-20230524113220299](https://videoactivity.bookan.com.cn/ac_202305260902270522126301.png)
 
-如图所示：VAO1中下标为0的指针attribute pointer[0]对应VBO1中的pos[0],表示VOB1数组中下标为0位置代表坐标pos。
-
-VAO2中下标为0的指针attribute pointer[0]对应VBO2中的pos[0]，VAO2中下标为1的指针attribute pointer[1]对应VBO2中的col[0]，表示VOB2数组中下标为1位置代表颜色col。
-
 我们用VBO来存储数据，而用VAO来告诉计算机这些数据分别有什么属性、起什么作用。
-
-VBO是 CPU 和 GPU 之间传递信息的桥梁，我们把数据存入VBO(这一步在CPU执行)，然后VBO会自动把数据送入GPU。但是，对GPU来说，VBO中存的就只是一堆数字而已，要怎么解释它们呢？这就要用到VAO了。
-
-VBO是在显卡存储空间中开辟出的一块内存缓存区，用于存储顶点的各类属性信息，如顶点坐标，顶点法向量，顶点颜色数据等。在渲染时，可以直接从VBO中取出顶点的各类属性数据，由于VBO在显存而不是在内存中，不需要从CPU传输数据，处理效率更高。
 
 顶点坐标为`[]float32`类型，依次为`X, Y, Z`，`窗口中心点为原点，向右为X正，上为Y正`，取值范围`[-1,1]`，
 ```go
@@ -292,11 +288,10 @@ func makeVao(points []float32) uint32 {
     // 解绑：gl.BindVertexArray(0)，opengl中很多的解绑操作都是传入0
 	gl.BindVertexArray(vao)
 
-    // 使vao去引用到gl.ARRAY_BUFFER上面的vbo，这一步完成之后vao就建立了对特定vbo的引用，后面即使gl.ARRAY_BUFFER
-    // 的值发生了变化也不影响vao的使用
+    // 使vao去引用到gl.ARRAY_BUFFER上面的vbo，这一步完成之后vao就建立了对特定vbo的引用，后面即使gl.ARRAY_BUFFER 的值发生了变化也不影响vao的使用
 	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0, nil)
-    // 设置 vertex attribute 的状态enabled，默认是disabled
-，	gl.EnableVertexAttribArray(0)
+    // 设置 vertex attribute 的状态enabled，默认是disabled，后面会有具体解释
+	gl.EnableVertexAttribArray(0)
 
 	return vao
 }
@@ -308,7 +303,7 @@ func makeVao(points []float32) uint32 {
 - `GL_DYNAMIC_DRAW`：数据会被改变很多。
 - `GL_STREAM_DRAW` ：数据每次绘制时都会改变。
 
-三角形的位置数据不会改变，每次渲染调用时都保持原样，所以它的使用类型最好是GL_STATIC_DRAW。如果，比如说一个缓冲中的数据将频繁被改变，那么使用的类型就是GL_DYNAMIC_DRAW或GL_STREAM_DRAW，这样就能确保显卡把数据放在能够高速写入的内存部分。
+三角形的位置数据不会改变，每次渲染调用时都保持原样，所以它的使用类型最好是 GL_STATIC_DRAW。如果，比如说一个缓冲中的数据将频繁被改变，那么使用的类型就是 GL_DYNAMIC_DRAW 或 GL_STREAM_DRAW，这样就能确保显卡把数据放在能够高速写入的内存部分。
 
 - `VertexAttribPointer(index uint32, size int32, xtype uint32, normalized bool, stride int32, pointer unsafe.Pointer)`
   每一个顶点有会有多个属性，比如常用的有：
@@ -331,12 +326,12 @@ vertices = []float32{
 
 所以，`VertexAttribPointer`函数的作用是规定了该如何来拆分和使用顶点数据VBO。参数说明如下：
 
-- 1、index：既然属性可能有多个，那就给它标个号吧，从0开始，我们在顶点着色器中使用layout(location = 0)可以把顶点属性的位置值设置为0。
-- 2、size：这个属性有几个值，与着色器中的`vec`几对应。
-- 3、xtype：属性的值是什么类型，比如`gl.FLOAT`。
-- 4、normalized：是否希望数据被归一化，如果为TRUE，那么所有的unsigned数据都会被转换成[0,1]之间，对于signed数据都会被转换成[-1,1]之间，一般选FALSE.
-- 5、stride：步长，单位是字节，计算方式是每一个像素点的所有属性总共占用多少字节，比如如果只有位置属性，那就是3个float32，即12个字节，也就是填12。当然，我们也可以填0，让OpenGL自己来算。
-- 6、pointer：这个比较难懂，其值为此属性的偏移量，单位字节，还是以`vertices`数据为例，假设它有三个属性：1、位置坐标（三个值），2、颜色（三个值），3、纹理坐标（两个值）。第一个属性偏移量为0，第二个属性偏移量为3个float32为12，第三个属性偏移量为6个float32为24。
+- `index`：既然属性可能有多个，那就给它标个号吧，从0开始，我们在顶点着色器中使用layout(location = 0)可以把顶点属性的位置值设置为0。
+- `size`：这个属性有几个值，比如位置属性有三个值，此处为3。
+- `xtype`：属性的值是什么类型，比如`gl.FLOAT`。
+- `normalized`：是否希望数据被归一化，如果为TRUE，那么所有的unsigned数据都会被转换成[0,1]之间，对于signed数据都会被转换成[-1,1]之间，一般选FALSE。
+- `stride`：步长，单位是字节，计算方式是每一个像素点的所有属性总共占用多少字节，比如如果只有位置属性，那就是3个float32，即12个字节，也就是填12。当然，我们也可以填0，让OpenGL自己来算。
+- `pointer`：这个比较难懂，其值为此属性的偏移量，单位字节，还是以`vertices`数据为例，假设它有三个属性：1、位置坐标（三个值），2、颜色（三个值），3、纹理坐标（两个值）。第一个属性偏移量为0，第二个属性偏移量为3个float32为12，第三个属性偏移量为6个float32为24。
 
 为了使用方便，我们使用`VertexAttribPointerWithOffset`来代替`VertexAttribPointer`。比如上面的三个属性可以这么设置
 
@@ -402,11 +397,11 @@ gl.EnableVertexAttribArray(texCoordAttrib)
 gl.VertexAttribPointerWithOffset(texCoordAttrib, 2, gl.FLOAT, false, 8*4, 6*4)
 ```
 
-每一个点虽然设置了几个属性，但是默认情况下，出于性能考虑，这些属性都是不生效的disabled，意味着数据在着色器端是不可见的，哪怕数据已经上传到GPU，所以要手动调用`EnableVertexAttribArray`来逐个让它们生效。其参数index跟`VertexAttribPointer`一样。
+每一个点虽然设置了几个属性，但是默认情况下，出于性能考虑，这些属性都是不生效的，即 disabled，意味着数据在着色器端是不可见的，哪怕数据已经上传到GPU，所以要手动调用`EnableVertexAttribArray`来逐个让它们生效。其参数index跟`VertexAttribPointer`一样。
 
 我们能声明的顶点属性是有上限的，它一般由硬件来决定。OpenGL确保至少有16个包含4分量的顶点属性可用，但是有些硬件或许允许更多的顶点属性，你可以查询 GL_MAX_VERTEX_ATTRIBS 来获取具体的上限。通常情况下它至少会返回16个，大部分情况下是够用了。
 
-那么，glEnableVertexAttribArray应该在glVertexAttribPointer之前还是之后调用？答案是都可以，只要在绘图调用（glDraw*系列函数）前调用即可。
+那么，`glEnableVertexAttribArray`应该在`glVertexAttribPointer`之前还是之后调用？答案是都可以，只要在绘图调用（`glDraw*`系列函数）前调用即可。
 
 至此，就完成了当前VAO对当前VBO的引用。
 
@@ -445,7 +440,7 @@ vertexShaderSource = `
 关于着色器更详细的说明 [着色器](https://learnopengl-cn.github.io/01%20Getting%20started/05%20Shaders/)
 
 #### 片元着色器
-片元着色器的作用是计算出每一个像素点最终的颜色，通常片段着色器会包含3D场景的一些额外的数据，如光线，阴影等。
+片元着色器的作用是计算出每一个像素点最终的颜色，通常片元着色器会包含3D场景的一些额外的数据，如纹理，光线，阴影等。
 
 用 RGBA 形式的值通过 vec4 来定义我们图形的颜色。四个分量的值都是`[0, 1]`。
 
@@ -463,8 +458,6 @@ fragmentShaderSource = `
 
 程序没有输入变量，因此是固定颜色并输出给下游处理。
 
-
-
 下面，你会看到一个图形渲染管线的每个阶段的抽象展示。要注意蓝色部分代表的是我们可以注入自定义的着色器的部分。
 
 ![image-20230605084307113](D:\dev\php\magook\trunk\server\md\img\image-20230605084307113.png)
@@ -477,22 +470,23 @@ fragmentShaderSource = `
 
 几何着色器的输出会被传入`光栅化阶段(Rasterization Stage)`，这里它会把图元映射为最终屏幕上相应的像素，生成供片段着色器(Fragment Shader)使用的片段(Fragment)。在片段着色器运行之前会执行裁切(Clipping)。裁切会丢弃超出你的视图以外的所有像素，用来提升执行效率。OpenGL中的一个片段是OpenGL渲染一个像素所需的所有数据。
 
-`片段着色器`的主要目的是计算一个像素的最终颜色，这也是所有OpenGL高级效果产生的地方。通常，片段着色器包含3D场景的数据（比如光照、阴影、光的颜色等等），这些数据可以被用来计算最终像素的颜色。
+`片段着色器`的主要目的是计算一个像素的最终颜色，这也是所有OpenGL高级效果产生的地方。通常，片段着色器包含3D场景的数据（比如光照、阴影、光的颜色等等），这些数据可以被用来计算最终像素的颜色。它只会计算可以在窗口中看到的这部分图形的颜色。
 
 在所有对应颜色值确定以后，最终的对象将会被传到最后一个阶段，我们叫做Alpha测试和混合(Blending)阶段。这个阶段检测片段的对应的深度（和模板(Stencil)）值（后面会讲），用它们来判断这个像素是其它物体的前面还是后面，决定是否应该丢弃。这个阶段也会检查alpha值（alpha值定义了一个物体的透明度）并对物体进行混合(Blend)。所以，即使在片段着色器中计算出来了一个像素输出的颜色，在渲染多个三角形的时候最后的像素颜色也可能完全不同。
 
 可以看到，图形渲染管线非常复杂，它包含很多可配置的部分。然而，对于大多数场合，我们只需要配置顶点和片段着色器就行了。几何着色器是可选的，通常使用它默认的着色器就行了。
 
-在现代OpenGL中，我们**必须**定义至少一个顶点着色器和一个片段着色器（因为GPU中没有默认的顶点/片段着色器）。
+在现代OpenGL中，我们必须定义至少一个顶点着色器和一个片段着色器（因为GPU中没有默认的顶点和片段着色器）。
 
 #### 画图
 
 OpenGL中所有的图形都是通过分解成三角形的方式进行绘制。
 
-OpenGL的坐标系为右手定则，坐标归一化为[-1,1]。
+OpenGL的坐标系为右手定则，坐标归一化为`[-1,1]`。
+
 ![右手定则img](https://videoactivity.bookan.com.cn/ac_1_1685591255_546.jpg)
 
-使用VAO作为数据，在opengl program中画图，其中画图和颜色填充交给可编程管线（顶点着色器和片元着色器）来完成，最后呈现在window上。
+使用VAO作为数据，在opengl program中画图，其中画图和颜色填充交给可编程管线（顶点着色器和片元着色器）来完成，最后呈现在窗口上。
 ```go
 func draw(vao uint32, window *glfw.Window, prog uint32) {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -505,12 +499,12 @@ func draw(vao uint32, window *glfw.Window, prog uint32) {
 	gl.BindVertexArray(vao)
 
     // 绘制的类型mode：
-    //   1、gl.TRIANGLES：每三个顶之间绘制三角形，之间不连接
-    //   2、gl.TRIANGLE_FAN：以V0V1V2,V0V2V3,V0V3V4，……的形式绘制三角形
-    //   3、gl.TRIANGLE_STRIP：以V0V1V2,V1V2V3,V2V3V4……的形式绘制三角形
-    // first：一般从第一个数据开始
+    //   1、gl.TRIANGLES：每三个顶点之间绘制三角形，之间不连接。
+    //   2、gl.TRIANGLE_FAN：以V0,V1,V2;V0,V2,V3;V0,V3,V4，……的形式绘制三角形。
+    //   3、gl.TRIANGLE_STRIP：以V0,V1,V2;V1,V2,V3;V2,V3,V4……的形式绘制三角形。
+    // first：一般从第一个顶点开始
     // count：除以3为顶点个数
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(triangle)/3)) // 三角形
+	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(triangle)/3))
 
 	glfw.PollEvents()
 
@@ -524,7 +518,7 @@ GLFW与OpenGL之间通过关联上下文来共享内存数据。
 
 - `gl.ClearColor(1.0, 0.0, 0.0, 1.0)`
 给OpenGL上下文中的一个特定对象赋值，此处假设为ColorObj，代表一个RGBA颜色值[0,1]。如果再次调用此函数那么ColorObj的值就会被覆盖，否则其值一直存在。
-如果ColorObj被用到了，意味着这一帧里面的所有像素点的RGBA值都是一样的，一个纯色的屏幕，也可以理解为清屏色。
+如果ColorObj被用到了，意味着这一帧里面的所有像素点的RGBA值都是一样的，一个纯色的屏幕，也可以理解为清屏色，底色。
 
 - `gl.ClearDepth(1.0)`
 给OpenGL上下文中的一个特定对象赋值，此处假设为DepthObj，代表一个深度值[0,1]。如果再次调用此函数那么DepthObj的值就会被覆盖，否则其值一直存在。
@@ -532,11 +526,9 @@ GLFW与OpenGL之间通过关联上下文来共享内存数据。
 
 所谓深度值，就是在3D空间中每个点在Z轴方向上的值，这样就知道哪个物体在上面哪个物体在下面，Z轴是相对于窗口屏幕而言的。
 
-如果你使用了GL_LESS（默认），`gl.DepthFunc(gl.LESS)`，那么Z轴垂直于屏幕向里，也就是深度值小的离人眼近，深度值大的远，也就会被挡住。如果使用的是gl.GREATER那么结果会相反。
+如果你使用了`GL_LESS（默认）`，`gl.DepthFunc(gl.LESS)`，那么Z轴垂直于屏幕向里，也就是深度值小的离人眼近，深度值大的远，也就会被挡住。如果使用的是`gl.GREATER`那么结果会相反。默认情况下，深度值为0，也就是Z轴的0点在窗口屏幕上，设置缓冲区深度值的作用在于，将XOY平面做上下平移，看到的东西会不一样。
 
-默认情况下，深度值为0，也就是Z轴的0点在窗口屏幕上，设置缓冲区深度值的作用在于，将XOY平面做上下平移，看到的东西会不一样。
-
-为了启用深度缓冲区进行深度测试，只需要调用：glEnable（GL_DEPTH_TEST）；另外，即使深度缓冲区未被启用，如果深度缓冲区被创建，OpenGL也会把所有写入到颜色缓冲区的颜色片段对应的深度值写入到深度缓冲区中。但是，如果我们希望在进行深度测试时临时禁止把值写入到深度缓冲区，我们可以使用函数：void glDepthMask（GLboolean mask）；把GL_FALSE作为参数，经禁止写入深度值，但并不禁止用已经写入到深度缓冲区的值进行深度测试。把GL_TRUE作为参数，可以重新启用深度缓冲区的写入。同时，这也是默认的设置。
+为了启用深度缓冲区进行深度测试，只需要调用：`gl.Enable(gl.DEPTH_TEST)`；另外，即使深度缓冲区未被启用，如果深度缓冲区被创建，OpenGL也会把所有写入到颜色缓冲区的颜色片段对应的深度值写入到深度缓冲区中。但是，如果我们希望在进行深度测试时临时禁止把值写入到深度缓冲区，我们可以使用函数：`gl.DepthMask(GLboolean mask)`；把GL_FALSE作为参数，经禁止写入深度值，但并不禁止用已经写入到深度缓冲区的值进行深度测试。把GL_TRUE作为参数，可以重新启用深度缓冲区的写入。同时，这也是默认的设置。
 
 - `gl.ClearStencil(1.0)`
 模板缓冲区可以为屏幕上的每个像素点保存一个无符号整数值。这个值的具体意义视程序的具体应用而定。
@@ -680,6 +672,163 @@ gl.DrawElements(gl.TRIANGLES, int32(len(indexs)), gl.UNSIGNED_INT, gl.Ptr(indexs
 ```
 
 一个着色器程序 program 只能 Attach 一组顶点着色器，几何着色器，片元着色器；但是有时候我们需要使用不同的着色器来渲染不同的部分，这个时候就需要创建多个 program，在使用的时候，需要用到哪个 program 就 Use 哪个。
+
+------
+
+#### 键盘事件
+
+如果设置了键盘事件，那么在`窗口被聚焦`的时候，按下键盘会触发此事件。
+
+```go
+window := util.InitGlfw(width, height, "Conway's Game of Life")
+// scancode是一个系统平台相关的键位扫描码信息
+// action参数表示这个按键是被按下还是释放，按下的时候会触发action=1，如果不放会一直触发action=2，放开的时候会触发action=0事件
+// mods表示是否有Ctrl、Shift、Alt、Super四个按钮的操作，1-shift,2-ctrl,4-alt，8-win
+keyCallback := func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+    log.Printf("key:%d, scancode:%d, action:%d, mods:%v, name:%s\n", key, scancode, action, mods, glfw.GetKeyName(key, scancode))
+    // 如果按下了ESC键就关闭窗口
+    if key == glfw.KeyEscape && action == glfw.Press {
+        window.SetShouldClose(true)
+    }
+}
+// 或者 glfw.GetCurrentContext().SetKeyCallback(keyCallback)
+window.SetKeyCallback(keyCallback)
+```
+
+取消键盘事件
+
+```go
+window.SetKeyCallback(nil)
+```
+
+字符输入事件，鼠标聚焦到窗口，然后打开输入法输入
+
+```go
+charCallback := func(w *glfw.Window, char rune) {
+    log.Printf("char:%s", string(char))
+}
+window.SetCharCallback(charCallback)
+
+```
+
+```bash
+2023/05/29 09:30:48 char:我
+2023/05/29 09:30:48 char:们
+2023/05/29 09:31:02 char:a
+2023/05/29 09:31:02 char:s
+2023/05/29 09:31:02 char:d
+```
+
+------
+
+#### 鼠标事件
+
+鼠标点击事件沿用了键盘事件，只是将按键变成了左键，右键，滚轮
+
+```go
+// 左键：button=0，按下action=1，松开action=0，没有按住事件
+// 右键：button=1，按下action=1，松开action=0，没有按住事件
+// 滚轮：button=2，按下action=1，松开action=0，没有按住事件
+mouseCallback := func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mod glfw.ModifierKey) {
+    log.Printf("button:%d, action:%d, mod:%d\n", button, action, mod)
+}
+window.SetMouseButtonCallback(mouseCallback)
+
+```
+
+鼠标坐标移动事件
+
+```go
+cursorPosCallback := func(w *glfw.Window, xpos float64, ypos float64) {
+    // 窗口左上角为 (0, 0)
+    log.Printf("x:%f, y:%f", xpos, ypos)
+}
+window.SetCursorPosCallback(cursorPosCallback)
+```
+
+按下左键并拖到鼠标的效果
+
+```go
+var x0, y0, x1, x2, y1, y2 float64
+
+mouseCallback := func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mod glfw.ModifierKey) {
+    log.Printf("button:%d, action:%d, mod:%d\n", button, action, mod)
+
+    if button == glfw.MouseButtonLeft && action == glfw.Press {
+        x1, y1 = x0, y0
+        log.Printf("x1:%f, y1:%f", x1, y1)
+    }
+
+    if button == glfw.MouseButtonLeft && action == glfw.Release {
+        x2, y2 = x0, y0
+        log.Printf("x2:%f, y2:%f", x2, y2)
+        log.Printf("x move:%f, y move:%f", x2-x1, y2-y1)
+    }
+}
+window.SetMouseButtonCallback(mouseCallback)
+
+cursorPosCallback := func(w *glfw.Window, xpos float64, ypos float64) {
+    x0 = xpos
+    y0 = ypos
+}
+window.SetCursorPosCallback(cursorPosCallback)
+```
+
+鼠标滚轮或者触摸板，鼠标滚轮只有yoff，表示垂直滚动了多少，触摸板有xoff和yoff。
+
+```go
+scrollCallback := func(w *glfw.Window, xoff float64, yoff float64) {
+    log.Printf("xoff:%f, yoff:%f", x2, y2)
+}
+window.SetScrollCallback(scrollCallback)
+```
+
+将对象拖拽到窗口放下事件，可以是多选文件，`names`为这些文件的绝对地址。
+
+```go
+dropCallback := func(w *glfw.Window, names []string) {
+    // names:[D:\dev\php\magook\trunk\server\go-graphic\demo5\square.png]
+    log.Printf("names:%v", names)
+}
+window.SetDropCallback(dropCallback)
+```
+
+鼠标聚焦到窗口事件
+
+```go
+// CursorEnterCallback is the cursor boundary crossing callback.
+type CursorEnterCallback func(w *Window, entered bool)
+
+// SetCursorEnterCallback the cursor boundary crossing callback which is called
+// when the cursor enters or leaves the client area of the window.
+func (w *Window) SetCursorEnterCallback(cbfun CursorEnterCallback) (previous CursorEnterCallback)
+```
+
+操纵杆，控制杆事件
+
+```go
+// JoystickCallback is the joystick configuration callback.
+type JoystickCallback func(joy, event int)
+
+// SetJoystickCallback sets the joystick configuration callback, or removes the
+// currently set callback. This is called when a joystick is connected to or
+// disconnected from the system.
+func SetJoystickCallback(cbfun JoystickCallback) (previous JoystickCallback)
+
+// JoystickPresent reports whether the specified joystick is present.
+func JoystickPresent(joy Joystick) bool
+
+// GetJoystickAxes returns a slice of axis values.
+func GetJoystickAxes(joy Joystick) []float32
+
+// GetJoystickButtons returns a slice of button values.
+func GetJoystickButtons(joy Joystick) []byte
+
+// GetJoystickName returns the name, encoded as UTF-8, of the specified joystick.
+func GetJoystickName(joy Joystick) string
+```
+
+
 
 
 -------------------------------------------------------------------------------------------------------
@@ -1324,163 +1473,342 @@ for !window.ShouldClose() {
 
 **坐标系统**
 
+一个顶点在最终被转化为片段之前需要经历的所有不同状态。
+
+- 局部空间(Local Space)，或者称为物体空间(Object Space)
+- 世界空间(World Space)
+- 观察空间(View Space)，或者称为视觉空间(Eye Space)，摄像机空间(Camera Space)
+- 裁剪空间(Clip Space)
+- 屏幕空间(Screen Space)
+
+为了将坐标从一个坐标系变换到另一个坐标系，我们需要用到几个变换矩阵，最重要的几个分别是模型(Model)、观察(View)、投影(Projection)三个矩阵。我们的顶点坐标起始于局部空间(Local Space)，在这里它称为局部坐标(Local Coordinate)，它在之后会变为世界坐标(World Coordinate)，观察坐标(View Coordinate)，裁剪坐标(Clip Coordinate)，并最后以屏幕坐标(Screen Coordinate)的形式结束。下面的这张图展示了整个流程以及各个变换过程做了什么：
+
+![image-20230606171837090](D:\dev\php\magook\trunk\server\md\img\image-20230606171837090.png)
+
+**矩阵变换**
+
+- 从局部空间变换到世界空间：模型矩阵(Model Matrix)。
+- 从世界空间变换到观察空间：观察矩阵(View Matrix)。
+- 从观察空间变换到裁剪空间：投影矩阵(Projection Matrix)。
+
+一旦所有顶点被变换到裁剪空间，最终的操作——`透视除法(Perspective Division)`将会执行，在这个过程中我们将位置向量的x，y，z分量分别除以向量的齐次w分量；透视除法是将4D裁剪空间坐标变换为3D标准化设备坐标的过程。这一步会在每一个顶点着色器运行的最后被`自动执行`。
+
+将观察坐标变换为裁剪坐标的投影矩阵可以为两种不同的形式，每种形式都定义了不同的平截头体。我们可以选择创建一个`正射投影矩阵(Orthographic Projection Matrix)`或一个`透视投影矩阵(Perspective Projection Matrix)`。
+
+**正射投影**
+
+它由宽、高、近(Near)平面和远(Far)平面所指定。
+
+```go
+// near平面为靠近观察者的平面
+// 参数一二，表示near平面的左右坐标
+// 参数三四，表示near平面的底顶坐标
+// 参数五六，near和far平面距离屏幕的距离
+mgl32.Ortho(0, 800, 0, 600, 0.1, 100)
+```
+
+
+
+![image-20230607102855816](D:\dev\php\magook\trunk\server\md\img\image-20230607102855816.png)
+
+正射投影对近处和远处的物体都一视同仁，也就说每个顶点的w分量都是1，但这与现实不符，实际上，同样大小的物体，距离人眼越远会看到的越小，这是由眼睛的构造决定的。
+
+**透视投影**
+
+```go
+// 第一个参数为视野角，通常为45度。
+// 第二个参数为视口的宽高比。
+// near和far平面距离屏幕的距离。通常设置near为0.1，far为100
+mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.1, 10.0)
+```
+
+
+
+![image-20230607105604681](D:\dev\php\magook\trunk\server\md\img\image-20230607105604681.png)
+
+距离摄像机越远，能看到的视野越大，但是屏幕大小是固定的，于是物体是会缩小的。
+
+会修改w分量，离观察者越远的顶点坐标w分量越大。最后会让x,y,z都除以w分量，于是远处的物体就变小了。
+
+**视野角的特性**：角度越小，那么看到的场景范围就越小，投影到屏幕上反而是放大的效果；反之，视野角越大，是缩小的效果。
+
+最后的变换过程：
+
+```go
+V_clip = M_projection * M_view * M_model * V_local
+```
+
+**具体实践**
+
+**Model Matrix**
+
+我们在一个房间里面（世界空间）画了两个桌子，它们分别在世界坐标系原点的左边和右边，当我们进入左边桌子进行绘制的时候，为了绘制方便我们会将坐标原点放在桌子的中心，此时就是局部空间了，画完了之后我们需要返回到世界空间来看整体效果，我们需要先将桌子变小（因为在画的时候我会让它占了屏幕的大部分），变小之后我们就能看到两个立方体了，但是刚才画的那个桌子的中心是在世界空间的中心上的，我们需要将其挪一下，如果桌子应该是斜着摆放的，那么还需要先旋转一下，你会发现，平移，缩放，旋转三个操作应该是由顺序的。应该是`缩放 --> 旋转 --> 平移`。
+
+**View Matrix**
+
+来到了世界空间之后，我们该从哪个角度来观察这个空间呢，换句话说，做为图形工具，应该将哪个角度的景象呈现给用户呢，这里就有一个摄像机的概念，可以理解为用户的眼睛，将摄像机向后移动，和将整个场景向前移动是一样的。OpenGL是一个右手坐标系，所以我们需要沿着z轴的正方向移动。我们会通过将场景沿着z轴负方向平移来实现。它会给我们一种我们在往后移动的感觉。想象一下，一个立体的场景在那里不动，人可以选择从不同的点位来观察它，摄像机不能旋转，它永远是垂直于屏幕在看。当然，我们也可以让摄像机转到起来，这是另外一个知识点。
+
+**Projection Matrix**
+
+将场景投影到窗口区域上。
+
+```go
+model := mgl32.HomogRotate3D(mgl32.DegToRad(-55), mgl32.Vec3{1, 0, 0})
+view := mgl32.Translate3D(0, 0, -3)
+projection := mgl32.Perspective(mgl32.DegToRad(45), float32(width)/float32(height), 0.1, 100)
+transe := projection.Mul4(view).Mul4(model)
+gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+```
+
+如果有3D效果，那么就需要开启深度测试，它会对遮挡进行处理，否则效果比较奇怪。
+
+```go
+gl.Enable(gl.DEPTH_TEST)
+
+gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+```
+
 
 
 ------
 
 #### 摄像机
 
+前面将的坐标系统，是假设摄像机不动，而是场景在动，物体在动，其实还有一种观察方式就是让摄像机也动起来。
 
+定义一个摄像机，就是创建一个三个单位轴相互垂直的、以摄像机的位置为原点的坐标系。
+
+![image-20230608091924237](D:\dev\php\magook\trunk\server\md\img\image-20230608091924237.png)
+
+定义一个摄像机的步骤：
+
+- 摄像机的位置：世界空间中的一个点，代表摄像机放在这里，位置越远看到的物体越小，`P1(x,y,z)`。
+
+  ```go
+  cameraPos := mgl32.Vec3{0, 0, 3}
+  ```
+
+- 摄像机的方向：在世界空间中，摄像机指向哪里，因为它代表的只是一个方向，因此在该方向上选取一点即可，比如摄像机指向原点`P2(0,0,0)`，那么摄像机的方向就是 `P1-P2`，就是图中蓝色的箭头，但是这个方向却和摄像机拍照的方向相反。
+
+  ```go
+  cameraTarget := mgl32.Vec3{0, 0, 0}
+  cameraDirction := cameraPos.Sub(cameraTarget)
+  ```
+
+- 右轴：也叫X轴正方形，为获取右向量我们需要先使用一个小技巧：先定义一个上向量(Up Vector)。接下来把上向量和第二步得到的方向向量进行叉乘。两个向量叉乘的结果会同时垂直于两向量，因此我们会得到指向x轴正方向的那个向量（如果我们交换两个向量叉乘的顺序就会得到相反的指向x轴负方向的向量）。
+
+  ```go
+  up := mgl32.Vec3{0, 1, 0}
+  cameraRight := up.Cross(cameraDirction)
+  ```
+
+- 上轴：现在我们已经有了x轴向量和z轴向量，获取一个指向摄像机的正y轴向量就相对简单了：我们把右向量和方向向量进行叉乘。
+
+  ```go
+  cameraUp := cameraDirction.Cross(cameraRight)
+  ```
+
+于是我们发现，只要给定了`cameraPos, cameraTarget, up`三个向量，我们就可以构造出一个摄像机坐标，于是就有了`LookAt`函数。
+
+```go
+camera := mgl32.LookAtV(cameraPos, cameraTarget, up)
+```
+
+在使用的过程中，摄像机其实就是view，因此顺序是`projection * camera * model`。
+
+**示例1**
+
+一个立方体绕着Y轴旋转，正常情况下我们只能看到Y轴这个面，加入了相机之后我们就能看到一个立体效果。
+
+```go
+model := mgl32.HomogRotate3D(float32(glfw.GetTime()), mgl32.Vec3{0, 1, 0})
+camera := mgl32.LookAtV(mgl32.Vec3{2, 2, 2}, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
+projection := mgl32.Perspective(mgl32.DegToRad(45), float32(width)/height, 0.1, 100)
+transe := projection.Mul4(camera).Mul4(model)
+gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+```
+
+![image-20230608101243032](D:\dev\php\magook\trunk\server\md\img\image-20230608101243032.png)
+
+**示例2**
+
+场景不动，摄像机的位置围绕着一个圆旋转，圆半径为3
+
+```go
+radius := 3.0
+cx := float32(math.Sin(glfw.GetTime()) * radius)
+cz := float32(math.Cos(glfw.GetTime()) * radius)
+camera := mgl32.LookAtV(mgl32.Vec3{cx, 2, cz}, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
+projection := mgl32.Perspective(mgl32.DegToRad(45), float32(width)/height, 0.1, 100)
+transe := projection.Mul4(camera)
+gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+```
+
+![image-20230608104049688](D:\dev\php\magook\trunk\server\md\img\image-20230608104049688.png)
+
+**示例3**
+
+使用按键WSAD来控制相机左右前后移动，
+
+```go
+cameraPos := mgl32.Vec3{0, 0, 3}
+cameraFront := mgl32.Vec3{0, 0, -1}
+cameraUp := mgl32.Vec3{0, 1, 0}
+
+func KeyPressAction(window *glfw.Window) {
+	keyCallback := func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		cameraSpeed := float32(0.05)
+		if key == glfw.KeyW && action == glfw.Press {
+			cameraPos = cameraPos.Sub(cameraFront.Mul(cameraSpeed))
+		}
+		if key == glfw.KeyS && action == glfw.Press {
+			cameraPos = cameraPos.Add(cameraFront.Mul(cameraSpeed))
+		}
+		if key == glfw.KeyA && action == glfw.Press {
+             // Normalize 标准化坐标使其落在 [-1,1]
+			cameraPos = cameraPos.Add(cameraFront.Cross(cameraUp).Normalize().Mul(cameraSpeed))
+		}
+		if key == glfw.KeyD && action == glfw.Press {
+			cameraPos = cameraPos.Sub(cameraFront.Cross(cameraUp).Normalize().Mul(cameraSpeed))
+		}
+         // log.Println(cameraPos, cameraPos.Add(cameraFront))
+	}
+	window.SetKeyCallback(keyCallback)
+}
+
+func Run10() {
+	......
+	KeyPressAction(window)
+
+	for !window.ShouldClose() {
+		......
+         // 这样能保证无论我们怎么移动，摄像机都会注视着目标方向
+		camera := mgl32.LookAtV(cameraPos, cameraPos.Add(cameraFront), cameraUp)
+		projection := mgl32.Perspective(mgl32.DegToRad(45), float32(width)/height, 0.1, 100)
+		transe := projection.Mul4(camera)
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+
+		......
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}
+```
+
+A和D需要正交移动，因此要用向量的`叉乘`。
+
+上面注释中有些`这样能保证无论我们怎么移动，摄像机都会注视着目标方向`，该如何理解呢，我们在`keyCallback`中增加打印来细细观察，因为WSAD操作只改变了`cameraPos`值，而`cameraFront`只有Z方向，因此`cameraTarget = cameraPos + cameraFront`会导致摄像机的朝向始终平行于Z轴，跟最开始的时候一样。
 
 ------
 
+#### 视角移动
 
+##### 欧拉角
 
+欧拉角(Euler Angle)是可以表示3D空间中任何旋转的3个值，由莱昂哈德·欧拉(Leonhard Euler)在18世纪提出。一共有3种欧拉角：俯仰角(Pitch)、偏航角(Yaw)和滚转角(Roll)，下面的图片展示了它们的含义：
 
-#### 键盘事件
-如果设置了键盘事件，那么在`窗口被聚焦`的时候，按下键盘会触发此事件。
+![image-20230608151431546](D:\dev\php\magook\trunk\server\md\img\image-20230608151431546.png)
+
+俯仰角是描述我们如何往上或往下看的角，可以在第一张图中看到。第二张图展示了偏航角，偏航角表示我们往左和往右看的程度。滚转角代表我们如何**翻滚**摄像机，通常在太空飞船的摄像机中使用。每个欧拉角都有一个值来表示，把三个角结合起来我们就能够计算3D空间中任何的旋转向量了。
+
+![image-20230609105626513](D:\dev\php\magook\trunk\server\md\img\image-20230609105626513.png)
+
+![image-20230609105638332](D:\dev\php\magook\trunk\server\md\img\image-20230609105638332.png)
+
+最终的方向向量计算公式
 
 ```go
-window := util.InitGlfw(width, height, "Conway's Game of Life")
-// scancode是一个系统平台相关的键位扫描码信息
-// action参数表示这个按键是被按下还是释放，按下的时候会触发action=1，如果不放会一直触发action=2，放开的时候会触发action=0事件
-// mods表示是否有Ctrl、Shift、Alt、Super四个按钮的操作，1-shift,2-ctrl,4-alt，8-win
+// direction代表摄像机的前轴(Front)，这个前轴是和本文第一幅图片的第二个摄像机的方向向量是相反的
+direction.x = cos(glm::radians(pitch)) * cos(glm::radians(yaw)); 
+direction.y = sin(glm::radians(pitch));
+direction.z = cos(glm::radians(pitch)) * sin(glm::radians(yaw));
+```
+
+**鼠标控制**
+
+首先让窗口捕获光标
+
+```go
+// 让窗口完全捕获光标，并隐藏光标
+window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 keyCallback := func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-    log.Printf("key:%d, scancode:%d, action:%d, mods:%v, name:%s\n", key, scancode, action, mods, glfw.GetKeyName(key, scancode))
-    // 如果按下了ESC键就关闭窗口
     if key == glfw.KeyEscape && action == glfw.Press {
-        window.SetShouldClose(true)
+        w.SetInputMode(glfw.CursorMode, glfw.CursorNormal)
     }
 }
-// 或者 glfw.GetCurrentContext().SetKeyCallback(keyCallback)
 window.SetKeyCallback(keyCallback)
 ```
-取消键盘事件
+
+鼠标坐标系的原点为屏幕左上角，向右为X正，向下为Y正，因此Y轴的增量应该反过来。
+
+刚进来的时候会出现抖动，那是因为默认的cursorX，cursorY在屏幕中心，而鼠标刚开始并不在屏幕中心，因此要初始化起始点。
+
+俯仰角，要让用户不能看向高于89度的地方（在90度时视角会发生逆转），同样也不允许小于-89度。这样能够保证用户只能看到天空或脚下，但是不能超越这个限制。类比于人的眼睛仰视和俯视，超过了90度看到的东西会反过来。
+
+偏航角却可以是360度旋转。
+
+如果把`yaw`和`pitch`的初始值设置为0，你会发现一进来动一下鼠标就是空白，那是因为我们的相机朝向出了问题，而相机的朝向就是`cameraFront`决定的，那么初始值怎么设置呢，`cameraFront`的初始值为`(0,0,-1)`，鼠标进到屏幕后应该是线性变化的，不能是突变，所以`yaw`和`pitch`的初始值就是使`cameraFront = (0,0,-1)`，我们来分析它的公式就知道`pitch = 0, yaw = -90`。
+
 ```go
-window.SetKeyCallback(nil)
-```
-字符输入事件，鼠标聚焦到窗口，然后打开输入法输入
-```go
-charCallback := func(w *glfw.Window, char rune) {
-    log.Printf("char:%s", string(char))
-}
-window.SetCharCallback(charCallback)
-
-```
-```bash
-2023/05/29 09:30:48 char:我
-2023/05/29 09:30:48 char:们
-2023/05/29 09:31:02 char:a
-2023/05/29 09:31:02 char:s
-2023/05/29 09:31:02 char:d
-```
-
-------
-
-
-
-#### 鼠标事件
-
-鼠标点击事件沿用了键盘事件，只是将按键变成了左键，右键，滚轮
-```go
-// 左键：button=0，按下action=1，松开action=0，没有按住事件
-// 右键：button=1，按下action=1，松开action=0，没有按住事件
-// 滚轮：button=2，按下action=1，松开action=0，没有按住事件
-mouseCallback := func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mod glfw.ModifierKey) {
-    log.Printf("button:%d, action:%d, mod:%d\n", button, action, mod)
-}
-window.SetMouseButtonCallback(mouseCallback)
-
-```
-
-鼠标坐标移动事件
-```go
+var firstMouse bool
+var cursorX float64 = 400
+var cursorY float64 = 300
+var yaw float64 = -90
+var pitch float64
+sensitivity := 0.05 // 鼠标移动的灵敏度
 cursorPosCallback := func(w *glfw.Window, xpos float64, ypos float64) {
-    // 窗口左上角为 (0, 0)
-    log.Printf("x:%f, y:%f", xpos, ypos)
+    if firstMouse {
+        cursorX = xpos
+        cursorY = ypos
+        firstMouse = false
+    }
+
+    xoffset := sensitivity * (xpos - cursorX)
+    yoffset := sensitivity * (cursorY - ypos)
+    cursorX = xpos
+    cursorY = ypos
+    yaw += xoffset
+    pitch += yoffset
+    if pitch > 89 {
+        pitch = 89
+    }
+    if pitch < -89 {
+        pitch = -89
+    }
+
+    cameraFront = mgl32.Vec3{
+        float32(math.Cos(float64(mgl32.DegToRad(float32(pitch)))) * math.Cos(float64(mgl32.DegToRad(float32(yaw))))),
+        float32(math.Sin(float64(mgl32.DegToRad(float32(pitch))))),
+        float32(math.Cos(float64(mgl32.DegToRad(float32(pitch)))) * math.Sin(float64(mgl32.DegToRad(float32(yaw))))),
+    }.Normalize()
 }
 window.SetCursorPosCallback(cursorPosCallback)
 ```
 
-按下左键并拖到鼠标的效果
+**滚轮控制缩放**
+
+**视野**(Field of View)或**fov**定义了我们可以看到场景中多大的范围。当视野变小时，场景投影出来的空间就会减小，产生放大(Zoom In)了的感觉。我们会使用鼠标的滚轮来放大。与鼠标移动、键盘输入一样，我们需要一个鼠标滚轮的回调函数，当滚动鼠标滚轮的时候，yoff 值代表我们竖直滚动的大小。当scrollCallback函数被调用后，我们改变全局变量fov变量的内容。因为`45.0f`是默认的视野值，我们将会把缩放级别(Zoom Level)限制在`1.0f`到`45.0f`。
 
 ```go
-var x0, y0, x1, x2, y1, y2 float64
-
-mouseCallback := func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mod glfw.ModifierKey) {
-    log.Printf("button:%d, action:%d, mod:%d\n", button, action, mod)
-
-    if button == glfw.MouseButtonLeft && action == glfw.Press {
-        x1, y1 = x0, y0
-        log.Printf("x1:%f, y1:%f", x1, y1)
-    }
-
-    if button == glfw.MouseButtonLeft && action == glfw.Release {
-        x2, y2 = x0, y0
-        log.Printf("x2:%f, y2:%f", x2, y2)
-        log.Printf("x move:%f, y move:%f", x2-x1, y2-y1)
-    }
-}
-window.SetMouseButtonCallback(mouseCallback)
-
-cursorPosCallback := func(w *glfw.Window, xpos float64, ypos float64) {
-    x0 = xpos
-    y0 = ypos
-}
-window.SetCursorPosCallback(cursorPosCallback)
-```
-
-滚轮事件？？？？
-
-鼠标滚轮或者触摸板，鼠标滚轮只有yoff，表示垂直滚动了多少，触摸板有xoff和yoff
-```go
+var fov float64 = 45
 scrollCallback := func(w *glfw.Window, xoff float64, yoff float64) {
-    log.Printf("xoff:%f, yoff:%f", x2, y2)
+    if fov >= 1.0 && fov <= 45.0 {
+        fov -= yoff
+    }
+    if fov <= 1.0 {
+        fov = 1.0
+    }
+    if fov >= 45.0 {
+        fov = 45.0
+    }
 }
 window.SetScrollCallback(scrollCallback)
+......
+projection := mgl32.Perspective(mgl32.DegToRad(float32(fov)), float32(width)/height, 0.1, 100)
 ```
 
-将对象拖拽到窗口放下事件，可以是多选文件，`names`为这些文件的绝对地址。
-```go
-dropCallback := func(w *glfw.Window, names []string) {
-    // names:[D:\dev\php\magook\trunk\server\go-graphic\demo5\square.png]
-    log.Printf("names:%v", names)
-}
-window.SetDropCallback(dropCallback)
-```
 
-鼠标聚焦到窗口事件
-```go
-// CursorEnterCallback is the cursor boundary crossing callback.
-type CursorEnterCallback func(w *Window, entered bool)
-
-// SetCursorEnterCallback the cursor boundary crossing callback which is called
-// when the cursor enters or leaves the client area of the window.
-func (w *Window) SetCursorEnterCallback(cbfun CursorEnterCallback) (previous CursorEnterCallback)
-```
-
-操纵杆，控制杆事件
-```go
-// JoystickCallback is the joystick configuration callback.
-type JoystickCallback func(joy, event int)
-
-// SetJoystickCallback sets the joystick configuration callback, or removes the
-// currently set callback. This is called when a joystick is connected to or
-// disconnected from the system.
-func SetJoystickCallback(cbfun JoystickCallback) (previous JoystickCallback)
-
-// JoystickPresent reports whether the specified joystick is present.
-func JoystickPresent(joy Joystick) bool
-
-// GetJoystickAxes returns a slice of axis values.
-func GetJoystickAxes(joy Joystick) []float32
-
-// GetJoystickButtons returns a slice of button values.
-func GetJoystickButtons(joy Joystick) []byte
-
-// GetJoystickName returns the name, encoded as UTF-8, of the specified joystick.
-func GetJoystickName(joy Joystick) string
-```
 
 ------
 
