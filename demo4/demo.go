@@ -575,7 +575,7 @@ func Run9() {
 	}
 }
 
-// 立方体不动，摄像机受到按键WSAD上下左右移动
+// 立方体不动，摄像机受到按键WSAD上下左右移动，按下W键不释放，就会一直移动。
 func Run10() {
 	runtime.LockOSThread()
 	window := util.InitGlfw(width, height, "texture2d")
@@ -610,6 +610,7 @@ func Run10() {
 			cameraPos = cameraPos.Sub(cameraFront.Cross(cameraUp).Normalize().Mul(cameraSpeed))
 		}
 		// log.Println(cameraPos, cameraPos.Add(cameraFront))
+		// log.Printf("key:%d, scancode:%d, action:%d, mods:%v, cameraPos:%v\n", key, scancode, action, mods, cameraPos)
 	}
 	window.SetKeyCallback(keyCallback)
 	///////////////////////////////////////////////
@@ -641,6 +642,7 @@ func Run10() {
 }
 
 // 立方体不动，摄像机受到按键WSAD上下左右移动，按下W键不释放，就会一直移动。
+// 实现方法2
 func Run11() {
 	runtime.LockOSThread()
 	window := util.InitGlfw(width, height, "texture2d")
