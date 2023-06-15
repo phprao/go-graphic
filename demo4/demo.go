@@ -964,3 +964,53 @@ func Run13() {
 		window.SwapBuffers()
 	}
 }
+
+// 封装 Camera 类
+func Run14() {
+	runtime.LockOSThread()
+	window := util.InitGlfw(width, height, "texture2d")
+	defer glfw.Terminate()
+
+	program, _ := util.InitOpenGL(vertexShaderSource6, fragmentShaderSource6)
+	vao := util.MakeVaoWithAttrib(program, vertices36, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vTexCoord", Size: 2}})
+	pointNum := int32(len(vertices36)) / 5
+	texture1 := util.MakeTexture("demo4/container.jpg")
+	texture2 := util.MakeTexture("demo4/awesomeface.png")
+
+	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+	gl.Enable(gl.DEPTH_TEST)
+
+	cameraPos := mgl32.Vec3{0, 0, 3}
+	cameraFront := mgl32.Vec3{0, 0, -1}
+	cameraUp := mgl32.Vec3{0, 1, 0}
+
+	camera := util.NewCamera(cameraPos, cameraFront, cameraUp, width, height)
+	camera.SetCursorPosCallback(window)
+
+	for !window.ShouldClose() {
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, texture1)
+		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture1"+"\x00")), 0)
+
+		gl.ActiveTexture(gl.TEXTURE1)
+		gl.BindTexture(gl.TEXTURE_2D, texture2)
+		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture2"+"\x00")), 1)
+
+		gl.BindVertexArray(vao)
+
+		cameraMate := camera.LookAtAndPerspective()
+		for k, v := range more {
+			model := mgl32.HomogRotate3D(mgl32.DegToRad(float32(20*k)), mgl32.Vec3{1, 0.3, 0.5})
+			model = mgl32.Translate3D(v.X(), v.Y(), v.Z()).Mul4(model)
+			transe := cameraMate.Mul4(model)
+			gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+			gl.DrawArrays(gl.TRIANGLES, 0, pointNum)
+		}
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}

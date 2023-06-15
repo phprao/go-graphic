@@ -7,11 +7,13 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"log"
+	"math"
 	"os"
 	"strings"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/go-gl/mathgl/mgl32"
 )
 
 // initGlfw 初始化 glfw 并且返回一个可用的窗口。
@@ -205,4 +207,159 @@ func InitOpenGL(vertexShaderSource, fragmentShaderSource string) (program uint32
 	}
 
 	return program, nil
+}
+
+func MakeProgram(vertexShaderSource, fragmentShaderSource string) (program uint32, err error) {
+	program = gl.CreateProgram()
+
+	if vertexShaderSource != "" {
+		vertexShader, err := CompileShader(vertexShaderSource, gl.VERTEX_SHADER)
+		if err != nil {
+			panic(err)
+		}
+		gl.AttachShader(program, vertexShader)
+	}
+
+	if fragmentShaderSource != "" {
+		fragmentShader, err := CompileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
+		if err != nil {
+			panic(err)
+		}
+		gl.AttachShader(program, fragmentShader)
+	}
+
+	gl.LinkProgram(program)
+
+	var status int32
+	gl.GetProgramiv(program, gl.LINK_STATUS, &status)
+	if status == gl.FALSE {
+		var logLength int32
+		gl.GetProgramiv(program, gl.INFO_LOG_LENGTH, &logLength)
+		log := strings.Repeat("\x00", int(logLength+1))
+		gl.GetProgramInfoLog(program, logLength, nil, gl.Str(log))
+
+		return 0, fmt.Errorf("failed to link shader program: %v", log)
+	}
+
+	return program, nil
+}
+
+type Camera struct {
+	CameraPos    mgl32.Vec3
+	CameraFront  mgl32.Vec3
+	CameraUp     mgl32.Vec3
+	Fov          float64
+	WindowWidth  int
+	WindowHeight int
+}
+
+// cameraFront 为相机的朝向.
+// cameraPos 为相机的位置.
+// windowWidth 窗口宽度.
+// windowHeight 窗口高度.
+func NewCamera(cameraPos mgl32.Vec3, cameraFront mgl32.Vec3, cameraUp mgl32.Vec3, windowWidth int, windowHeight int) *Camera {
+	return &Camera{cameraPos, cameraFront, cameraUp, 45, windowWidth, windowHeight}
+}
+
+func (c *Camera) LookAt() mgl32.Mat4 {
+	return mgl32.LookAtV(c.CameraPos, c.CameraPos.Add(c.CameraFront), c.CameraUp)
+}
+
+func (c *Camera) Perspective() mgl32.Mat4 {
+	return mgl32.Perspective(mgl32.DegToRad(float32(c.Fov)), float32(c.WindowWidth)/float32(c.WindowHeight), 0.1, 100)
+}
+
+func (c *Camera) SetCursorPosCallback(window *glfw.Window) {
+	// WSAD按键【平移相机位置】
+	keyCallback := func(w *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		cameraSpeed := float32(0.05)
+		moveUp := mgl32.Vec3{0, 1, 0}
+		// Z轴前进（向里）
+		if window.GetKey(glfw.KeyW) == glfw.Press {
+			c.CameraPos = c.CameraPos.Sub(c.CameraFront.Mul(cameraSpeed))
+		}
+		// Z轴后退（向外）
+		if window.GetKey(glfw.KeyS) == glfw.Press {
+			c.CameraPos = c.CameraPos.Add(c.CameraFront.Mul(cameraSpeed))
+		}
+		// X轴向左
+		if window.GetKey(glfw.KeyA) == glfw.Press {
+			c.CameraPos = c.CameraPos.Add(c.CameraFront.Cross(c.CameraUp).Normalize().Mul(cameraSpeed))
+		}
+		// X轴向右
+		if window.GetKey(glfw.KeyD) == glfw.Press {
+			c.CameraPos = c.CameraPos.Sub(c.CameraFront.Cross(c.CameraUp).Normalize().Mul(cameraSpeed))
+		}
+		// Y轴向上
+		if window.GetKey(glfw.KeyQ) == glfw.Press {
+			c.CameraPos = c.CameraPos.Add(moveUp.Mul(cameraSpeed))
+		}
+		// Y轴向下
+		if window.GetKey(glfw.KeyE) == glfw.Press {
+			c.CameraPos = c.CameraPos.Sub(moveUp.Mul(cameraSpeed))
+		}
+	}
+
+	window.SetKeyCallback(keyCallback)
+
+	// 鼠标滚轮实现【缩放】
+	scrollCallback := func(w *glfw.Window, xoff float64, yoff float64) {
+		if c.Fov >= 1.0 && c.Fov <= 45.0 {
+			c.Fov -= yoff
+		}
+		if c.Fov <= 1.0 {
+			c.Fov = 1.0
+		}
+		if c.Fov >= 45.0 {
+			c.Fov = 45.0
+		}
+	}
+	window.SetScrollCallback(scrollCallback)
+
+	// 按下鼠标左键，移动鼠标来改变【相机朝向】
+	cursorX := float64(c.WindowWidth / 2)
+	cursorY := float64(c.WindowHeight / 2)
+	var yaw float64 = -90
+	var pitch float64
+	var leftMouseHold bool
+	var sensitivity float64 = 0.05
+	mouseCallback := func(w *glfw.Window, button glfw.MouseButton, action glfw.Action, mod glfw.ModifierKey) {
+		if button == glfw.MouseButtonLeft {
+			if action == glfw.Press {
+				leftMouseHold = true
+			} else {
+				leftMouseHold = false
+			}
+		}
+	}
+	window.SetMouseButtonCallback(mouseCallback)
+
+	cursorPosCallback := func(w *glfw.Window, xpos float64, ypos float64) {
+		if !leftMouseHold {
+			// 防止出现抖动
+			cursorX = xpos
+			cursorY = ypos
+			return
+		}
+
+		xoffset := sensitivity * (xpos - cursorX)
+		yoffset := sensitivity * (cursorY - ypos)
+		cursorX = xpos
+		cursorY = ypos
+		yaw += xoffset
+		pitch += yoffset
+		if pitch > 89 {
+			pitch = 89
+		}
+		if pitch < -89 {
+			pitch = -89
+		}
+
+		c.CameraFront = mgl32.Vec3{
+			float32(math.Cos(float64(mgl32.DegToRad(float32(pitch)))) * math.Cos(float64(mgl32.DegToRad(float32(yaw))))),
+			float32(math.Sin(float64(mgl32.DegToRad(float32(pitch))))),
+			float32(math.Cos(float64(mgl32.DegToRad(float32(pitch)))) * math.Sin(float64(mgl32.DegToRad(float32(yaw))))),
+		}.Normalize()
+	}
+	window.SetCursorPosCallback(cursorPosCallback)
 }
