@@ -3,6 +3,7 @@ package light
 // 光照
 
 import (
+	"math"
 	"runtime"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -170,6 +171,8 @@ func Run() {
 
 	for !window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+		lightPos = mgl32.Vec3{2, float32(math.Sin(glfw.GetTime())), 0}
 
 		// 画箱子
 		gl.UseProgram(program1)
