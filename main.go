@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	light.Run()
+	light.Run2()
 }

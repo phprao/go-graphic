@@ -142,6 +142,35 @@ const (
 			frag_colour = mix(texture(ourTexture1, fTexCoord), texture(ourTexture2, fTexCoord), 0.2);
         }
     ` + "\x00"
+
+	vertexShaderSource7 = `
+        #version 410
+
+        in vec3 vPosition;
+		in vec2 vTexCoord;
+		
+		out vec2 fTexCoord;
+
+		uniform mat4 transe;
+
+        void main() {
+            gl_Position = transe * vec4(vPosition, 1.0);
+			fTexCoord = vec2(vTexCoord.x, 1.0-vTexCoord.y);
+        }
+    ` + "\x00"
+	fragmentShaderSource7 = `
+        #version 410
+        
+		in vec2 fTexCoord;
+
+		out vec4 frag_colour;
+
+		uniform sampler2D ourTexture;
+
+        void main() {
+			frag_colour = texture(ourTexture, fTexCoord);
+        }
+    ` + "\x00"
 )
 
 var (
@@ -159,47 +188,48 @@ var (
 	}
 
 	vertices36 = []float32{
-		-0.5, -0.5, -0.5, 0.0, 0.0,
-		0.5, -0.5, -0.5, 1.0, 0.0,
-		0.5, 0.5, -0.5, 1.0, 1.0,
-		0.5, 0.5, -0.5, 1.0, 1.0,
-		-0.5, 0.5, -0.5, 0.0, 1.0,
-		-0.5, -0.5, -0.5, 0.0, 0.0,
-
-		-0.5, -0.5, 0.5, 0.0, 0.0,
-		0.5, -0.5, 0.5, 1.0, 0.0,
-		0.5, 0.5, 0.5, 1.0, 1.0,
-		0.5, 0.5, 0.5, 1.0, 1.0,
-		-0.5, 0.5, 0.5, 0.0, 1.0,
-		-0.5, -0.5, 0.5, 0.0, 0.0,
-
+		// Left
 		-0.5, 0.5, 0.5, 1.0, 0.0,
 		-0.5, 0.5, -0.5, 1.0, 1.0,
 		-0.5, -0.5, -0.5, 0.0, 1.0,
 		-0.5, -0.5, -0.5, 0.0, 1.0,
 		-0.5, -0.5, 0.5, 0.0, 0.0,
 		-0.5, 0.5, 0.5, 1.0, 0.0,
-
+		// Front
+		-0.5, -0.5, 0.5, 0.0, 0.0,
+		0.5, -0.5, 0.5, 1.0, 0.0,
+		0.5, 0.5, 0.5, 1.0, 1.0,
+		0.5, 0.5, 0.5, 1.0, 1.0,
+		-0.5, 0.5, 0.5, 0.0, 1.0,
+		-0.5, -0.5, 0.5, 0.0, 0.0,
+		// Right
 		0.5, 0.5, 0.5, 1.0, 0.0,
 		0.5, 0.5, -0.5, 1.0, 1.0,
 		0.5, -0.5, -0.5, 0.0, 1.0,
 		0.5, -0.5, -0.5, 0.0, 1.0,
 		0.5, -0.5, 0.5, 0.0, 0.0,
 		0.5, 0.5, 0.5, 1.0, 0.0,
-
-		-0.5, -0.5, -0.5, 0.0, 1.0,
-		0.5, -0.5, -0.5, 1.0, 1.0,
-		0.5, -0.5, 0.5, 1.0, 0.0,
-		0.5, -0.5, 0.5, 1.0, 0.0,
-		-0.5, -0.5, 0.5, 0.0, 0.0,
-		-0.5, -0.5, -0.5, 0.0, 1.0,
-
+		// back
+		-0.5, -0.5, -0.5, 0.0, 0.0,
+		0.5, -0.5, -0.5, 1.0, 0.0,
+		0.5, 0.5, -0.5, 1.0, 1.0,
+		0.5, 0.5, -0.5, 1.0, 1.0,
+		-0.5, 0.5, -0.5, 0.0, 1.0,
+		-0.5, -0.5, -0.5, 0.0, 0.0,
+		// Top
 		-0.5, 0.5, -0.5, 0.0, 1.0,
 		0.5, 0.5, -0.5, 1.0, 1.0,
 		0.5, 0.5, 0.5, 1.0, 0.0,
 		0.5, 0.5, 0.5, 1.0, 0.0,
 		-0.5, 0.5, 0.5, 0.0, 0.0,
 		-0.5, 0.5, -0.5, 0.0, 1.0,
+		// Bottom
+		-0.5, -0.5, -0.5, 0.0, 1.0,
+		0.5, -0.5, -0.5, 1.0, 1.0,
+		0.5, -0.5, 0.5, 1.0, 0.0,
+		0.5, -0.5, 0.5, 1.0, 0.0,
+		-0.5, -0.5, 0.5, 0.0, 0.0,
+		-0.5, -0.5, -0.5, 0.0, 1.0,
 	}
 )
 
@@ -1009,6 +1039,164 @@ func Run14() {
 			gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
 			gl.DrawArrays(gl.TRIANGLES, 0, pointNum)
 		}
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}
+
+// 天空盒
+// 立方体贴图中，相机处于中心点，旋转鼠标即可发现自己在盒子里
+func Run15() {
+	runtime.LockOSThread()
+	window := util.InitGlfw(width, height, "texture2d")
+	defer glfw.Terminate()
+
+	program, _ := util.InitOpenGL(vertexShaderSource6, fragmentShaderSource6)
+	vao := util.MakeVaoWithAttrib(program, vertices36, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vTexCoord", Size: 2}})
+	pointNum := int32(len(vertices36)) / 5
+	texture1 := util.MakeTexture("demo4/container.jpg")
+	texture2 := util.MakeTexture("demo4/awesomeface.png")
+
+	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+	gl.Enable(gl.DEPTH_TEST)
+
+	cameraPos := mgl32.Vec3{0, 0, 0}
+	cameraFront := mgl32.Vec3{0, 0, -1}
+	cameraUp := mgl32.Vec3{0, 1, 0}
+
+	camera := util.NewCamera(cameraPos, cameraFront, cameraUp, width, height)
+	camera.SetCursorPosCallback(window)
+
+	for !window.ShouldClose() {
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, texture1)
+		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture1"+"\x00")), 0)
+
+		gl.ActiveTexture(gl.TEXTURE1)
+		gl.BindTexture(gl.TEXTURE_2D, texture2)
+		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture2"+"\x00")), 1)
+
+		gl.BindVertexArray(vao)
+		transe := camera.LookAtAndPerspective().Mul4(mgl32.Ident4())
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum)
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}
+
+// TODO
+// 使用六个面绘制不同的纹理
+// 天空盒大图下载
+// 然后使用网站 https://jaxry.github.io/panorama-to-cubemap/ 或者 https://www.360toolkit.co/convert-spherical-equirectangular-tocubemap.html 来切割成6个小图
+// https://blog.csdn.net/weixin_44176696/article/details/112144337
+// https://blog.csdn.net/weixin_31894867/article/details/113090151
+func Run16() {
+	runtime.LockOSThread()
+	window := util.InitGlfw(width, height, "texture2d")
+	defer glfw.Terminate()
+
+	program, _ := util.InitOpenGL(vertexShaderSource6, fragmentShaderSource6)
+	vao := util.MakeVaoWithAttrib(program, vertices36, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vTexCoord", Size: 2}})
+	textureLeft := util.MakeTexture("demo4/box1/left.jpg")
+	textureFront := util.MakeTexture("demo4/box1/front.jpg")
+	textureRight := util.MakeTexture("demo4/box1/right.jpg")
+	textureBack := util.MakeTexture("demo4/box1/back.jpg")
+	textureTop := util.MakeTexture("demo4/box1/top.jpg")
+	textureBottom := util.MakeTexture("demo4/box1/bottom.jpg")
+
+	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+	gl.Enable(gl.DEPTH_TEST)
+
+	cameraPos := mgl32.Vec3{0, 0, 0}
+	cameraFront := mgl32.Vec3{0, 0, -1}
+	cameraUp := mgl32.Vec3{0, 1, 0}
+
+	camera := util.NewCamera(cameraPos, cameraFront, cameraUp, width, height)
+	camera.SetCursorPosCallback(window)
+
+	for !window.ShouldClose() {
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.BindVertexArray(vao)
+		transe := camera.LookAtAndPerspective().Mul4(mgl32.Ident4())
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture"+"\x00")), 0)
+
+		gl.BindTexture(gl.TEXTURE_2D, textureLeft)
+		gl.DrawArrays(gl.TRIANGLES, 0, 6)
+
+		gl.BindTexture(gl.TEXTURE_2D, textureFront)
+		gl.DrawArrays(gl.TRIANGLES, 6, 6)
+
+		gl.BindTexture(gl.TEXTURE_2D, textureRight)
+		gl.DrawArrays(gl.TRIANGLES, 12, 6)
+
+		gl.BindTexture(gl.TEXTURE_2D, textureBack)
+		gl.DrawArrays(gl.TRIANGLES, 18, 6)
+
+		gl.BindTexture(gl.TEXTURE_2D, textureTop)
+		gl.DrawArrays(gl.TRIANGLES, 24, 6)
+
+		gl.BindTexture(gl.TEXTURE_2D, textureBottom)
+		gl.DrawArrays(gl.TRIANGLES, 30, 6)
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}
+
+// TODO
+// 天空盒
+func Run17() {
+	runtime.LockOSThread()
+	window := util.InitGlfw(width, height, "texture2d")
+	defer glfw.Terminate()
+
+	program, _ := util.InitOpenGL(vertexShaderSource6, fragmentShaderSource6)
+	vao := util.MakeVaoWithAttrib(program, vertices36, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vTexCoord", Size: 2}})
+	texture := util.MakeTextureCube([]string{
+		"demo4/skybox-left.png",
+		"demo4/skybox-front.png",
+		"demo4/skybox-right.png",
+		"demo4/skybox-back.png",
+		"demo4/skybox-top.png",
+		"demo4/skybox-bottom.png",
+	})
+
+	pointNum := int32(len(vertices36)) / 5
+
+	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+	gl.Enable(gl.DEPTH_TEST)
+
+	cameraPos := mgl32.Vec3{0, 0, 0}
+	cameraFront := mgl32.Vec3{0, 0, -1}
+	cameraUp := mgl32.Vec3{0, 1, 0}
+
+	camera := util.NewCamera(cameraPos, cameraFront, cameraUp, width, height)
+	camera.SetCursorPosCallback(window)
+
+	for !window.ShouldClose() {
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.BindVertexArray(vao)
+		transe := camera.LookAtAndPerspective().Mul4(mgl32.Ident4())
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("skybox"+"\x00")), 0)
+
+		gl.BindTexture(gl.TEXTURE_CUBE_MAP, texture)
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum)
 
 		glfw.PollEvents()
 		window.SwapBuffers()

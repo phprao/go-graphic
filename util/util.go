@@ -1,15 +1,19 @@
 package util
 
 import (
+	"bufio"
 	"fmt"
 	"image"
 	"image/draw"
 	_ "image/jpeg"
+	"image/png"
 	_ "image/png"
 	"log"
 	"math"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
@@ -147,7 +151,10 @@ func MakeTexture(filepath string) uint32 {
 	var texture uint32
 	gl.GenTextures(1, &texture)
 	gl.BindTexture(gl.TEXTURE_2D, texture)
-	MakeTextureTexParameteri()
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 
 	imgFile2, _ := os.Open(filepath)
 	defer imgFile2.Close()
@@ -161,11 +168,30 @@ func MakeTexture(filepath string) uint32 {
 	return texture
 }
 
-func MakeTextureTexParameteri() {
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+func MakeTextureCube(filepathArray []string) uint32 {
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_CUBE_MAP, texture)
+
+	for i := 0; i < len(filepathArray); i++ {
+		imgFile2, _ := os.Open(filepathArray[i])
+		defer imgFile2.Close()
+		img2, _, _ := image.Decode(imgFile2)
+		rgba2 := image.NewRGBA(img2.Bounds())
+		draw.Draw(rgba2, rgba2.Bounds(), img2, image.Point{0, 0}, draw.Src)
+
+		gl.TexImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X+uint32(i), 0, gl.RGBA, int32(rgba2.Rect.Size().X), int32(rgba2.Rect.Size().Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba2.Pix))
+
+		// gl.GenerateMipmap(gl.TEXTURE_CUBE_MAP)
+	}
+
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+
+	return texture
 }
 
 func InitOpenGL(vertexShaderSource, fragmentShaderSource string) (program uint32, err error) {
@@ -261,6 +287,13 @@ func NewCamera(cameraPos mgl32.Vec3, cameraFront mgl32.Vec3, cameraUp mgl32.Vec3
 	return &Camera{cameraPos, cameraFront, cameraUp, 45, windowWidth, windowHeight}
 }
 
+func (c *Camera) LookAtAndPerspective() mgl32.Mat4 {
+	view := mgl32.LookAtV(c.CameraPos, c.CameraPos.Add(c.CameraFront), c.CameraUp)
+	projection := mgl32.Perspective(mgl32.DegToRad(float32(c.Fov)), float32(c.WindowWidth)/float32(c.WindowHeight), 0.1, 100)
+
+	return projection.Mul4(view)
+}
+
 func (c *Camera) LookAt() mgl32.Mat4 {
 	return mgl32.LookAtV(c.CameraPos, c.CameraPos.Add(c.CameraFront), c.CameraUp)
 }
@@ -297,6 +330,10 @@ func (c *Camera) SetCursorPosCallback(window *glfw.Window) {
 		// Y轴向下
 		if window.GetKey(glfw.KeyE) == glfw.Press {
 			c.CameraPos = c.CameraPos.Sub(moveUp.Mul(cameraSpeed))
+		}
+		// 将当前窗口内容保存为 png 图片
+		if window.GetKey(glfw.KeyS) == glfw.Press && mods == glfw.ModControl {
+			c.SavePng("")
 		}
 	}
 
@@ -362,4 +399,29 @@ func (c *Camera) SetCursorPosCallback(window *glfw.Window) {
 		}.Normalize()
 	}
 	window.SetCursorPosCallback(cursorPosCallback)
+}
+
+func (c *Camera) SavePng(filepath string) {
+	img := image.NewRGBA(image.Rect(0, 0, c.WindowWidth, c.WindowHeight))
+
+	gl.ReadPixels(0, 0, int32(c.WindowWidth), int32(c.WindowHeight), gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(img.Pix))
+
+	// 翻转Y坐标
+	for x := 0; x < c.WindowWidth; x++ {
+		for y := 0; y < c.WindowHeight/2; y++ {
+			s := img.RGBAAt(x, y)
+			t := img.RGBAAt(x, c.WindowHeight-1-y)
+			img.SetRGBA(x, y, t)
+			img.SetRGBA(x, c.WindowHeight-1-y, s)
+		}
+	}
+
+	if filepath == "" {
+		filepath = strconv.Itoa(int(time.Now().Unix())) + ".png"
+	}
+	f, _ := os.Create(filepath)
+	b := bufio.NewWriter(f)
+	png.Encode(b, img)
+	b.Flush()
+	f.Close()
 }

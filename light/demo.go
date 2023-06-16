@@ -72,7 +72,7 @@ const (
 	}
 	` + "\x00"
 
-	vertexShaderSource2 = `
+	vertexShaderSourceLight = `
 	#version 410
 
 	in vec3 aPos;
@@ -86,13 +86,83 @@ const (
 	}
 	` + "\x00"
 
-	fragmentShaderSource2 = `
+	fragmentShaderSourceLight = `
 	#version 410
     
 	out vec4 frag_colour;
 
 	void main() {
 		frag_colour = vec4(1.0);
+	}
+	` + "\x00"
+
+	vertexShaderSource2 = `
+	#version 410
+
+	in vec3 aPos;
+	in vec3 aNormal;
+
+	out vec3 FragPos;
+	out vec3 Normal;
+
+	uniform mat4 model;
+	uniform mat4 view;
+	uniform mat4 projection;
+	uniform mat3 normalModel;
+
+	void main() {
+		Normal = normalModel * aNormal;
+		FragPos = vec3(model * vec4(aPos, 1.0));
+		gl_Position = projection * view * model * vec4(aPos, 1.0);
+	}
+	` + "\x00"
+
+	fragmentShaderSource2 = `
+	#version 410
+    
+	out vec4 frag_colour;
+
+	in vec3 Normal;
+	in vec3 FragPos;
+
+	uniform vec3 viewPos;
+
+	struct Material {
+		vec3 ambient;
+		vec3 diffuse;
+		vec3 specular;
+		float shininess;
+	}; 
+
+	uniform Material material;
+
+	struct Light {
+		vec3 position;
+	
+		vec3 ambient;
+		vec3 diffuse;
+		vec3 specular;
+	};
+	
+	uniform Light light;
+
+	void main() {
+		// 环境光
+		vec3 ambient = light.ambient * material.ambient;
+
+		// 漫反射光
+		vec3 norm = normalize(Normal);
+		vec3 lightDir = normalize(light.position - FragPos);
+		float diff = max(dot(norm, lightDir), 0.0);
+		vec3 diffuse = light.diffuse * diff * material.diffuse;
+
+		// 镜面光
+		vec3 viewDir = normalize(viewPos - FragPos);
+		vec3 reflectDir = reflect(-lightDir, norm);
+		float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
+		vec3 specular = light.specular * spec * material.specular;
+
+		frag_colour = vec4(ambient + diffuse + specular, 1.0);
 	}
 	` + "\x00"
 )
@@ -143,6 +213,7 @@ var (
 	}
 )
 
+// 环境光+漫反射光+镜面光
 func Run() {
 	runtime.LockOSThread()
 	window := util.InitGlfw(width, height, "light")
@@ -152,7 +223,7 @@ func Run() {
 
 	program1, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
 	vao1 := util.MakeVaoWithAttrib(program1, vertices, nil, []util.VertAttrib{{Name: "aPos", Size: 3}, {Name: "aNormal", Size: 3}})
-	program2, _ := util.MakeProgram(vertexShaderSource2, fragmentShaderSource2)
+	program2, _ := util.MakeProgram(vertexShaderSourceLight, fragmentShaderSourceLight)
 	vao2 := util.MakeVaoWithAttrib(program2, vertices, nil, []util.VertAttrib{{Name: "aPos", Size: 3}, {Name: "aNormal", Size: 3}})
 
 	gl.ClearColor(0.1, 0.1, 0.1, 1.0)
@@ -205,4 +276,80 @@ func Run() {
 		glfw.PollEvents()
 		window.SwapBuffers()
 	}
+}
+
+// 环境光+漫反射光+镜面光
+// 优化版
+func Run2() {
+	runtime.LockOSThread()
+	window := util.InitGlfw(width, height, "light")
+	defer glfw.Terminate()
+
+	pointNum := int32(len(vertices)) / 5
+
+	program1, _ := util.InitOpenGL(vertexShaderSource2, fragmentShaderSource2)
+	vao1 := util.MakeVaoWithAttrib(program1, vertices, nil, []util.VertAttrib{{Name: "aPos", Size: 3}, {Name: "aNormal", Size: 3}})
+	program2, _ := util.MakeProgram(vertexShaderSourceLight, fragmentShaderSourceLight)
+	vao2 := util.MakeVaoWithAttrib(program2, vertices, nil, []util.VertAttrib{{Name: "aPos", Size: 3}, {Name: "aNormal", Size: 3}})
+
+	gl.ClearColor(0.1, 0.1, 0.1, 1.0)
+	gl.Enable(gl.DEPTH_TEST)
+
+	lightPos := mgl32.Vec3{2, 0, 0}
+
+	cameraPos := mgl32.Vec3{0, 0, 3}
+	cameraFront := mgl32.Vec3{0, 0, -1}
+	cameraUp := mgl32.Vec3{0, 1, 0}
+
+	camera := util.NewCamera(cameraPos, cameraFront, cameraUp, width, height)
+	camera.SetCursorPosCallback(window)
+
+	for !window.ShouldClose() {
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+		lightPos = mgl32.Vec3{2, float32(math.Sin(glfw.GetTime())), 0}
+
+		// 画箱子
+		gl.UseProgram(program1)
+
+		gl.Uniform3f(gl.GetUniformLocation(program1, gl.Str("light.ambient\x00")), 0.2, 0.2, 0.2)
+		gl.Uniform3f(gl.GetUniformLocation(program1, gl.Str("light.diffuse\x00")), 0.5, 0.5, 0.5)
+		gl.Uniform3f(gl.GetUniformLocation(program1, gl.Str("light.specular\x00")), 1, 1, 1)
+		gl.Uniform3fv(gl.GetUniformLocation(program1, gl.Str("light.position\x00")), 1, &lightPos[0])
+
+		gl.Uniform3f(gl.GetUniformLocation(program1, gl.Str("material.ambient\x00")), 1, 0.5, 0.31)
+		gl.Uniform3f(gl.GetUniformLocation(program1, gl.Str("material.diffuse\x00")), 1, 0.5, 0.31)
+		gl.Uniform3f(gl.GetUniformLocation(program1, gl.Str("material.specular\x00")), 0.5, 0.5, 0.5)
+		gl.Uniform1f(gl.GetUniformLocation(program1, gl.Str("material.shininess\x00")), 32)
+
+		gl.Uniform3fv(gl.GetUniformLocation(program1, gl.Str("viewPos\x00")), 1, &camera.CameraPos[0])
+		view := camera.LookAt()
+		projection := camera.Perspective()
+
+		model1 := mgl32.Ident4()
+		normalModel := model1.Inv().Transpose().Mat3()
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program1, gl.Str("model\x00")), 1, false, &model1[0])
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program1, gl.Str("view\x00")), 1, false, &view[0])
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program1, gl.Str("projection\x00")), 1, false, &projection[0])
+		gl.UniformMatrix3fv(gl.GetUniformLocation(program1, gl.Str("normalModel\x00")), 1, false, &normalModel[0])
+		gl.BindVertexArray(vao1)
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum)
+
+		// 画光源
+		gl.UseProgram(program2)
+		model2 := mgl32.Translate3D(lightPos.X(), lightPos.Y(), lightPos.Z()).Mul4(mgl32.Scale3D(0.2, 0.2, 0.2))
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program2, gl.Str("model\x00")), 1, false, &model2[0])
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program2, gl.Str("view\x00")), 1, false, &view[0])
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program2, gl.Str("projection\x00")), 1, false, &projection[0])
+		gl.BindVertexArray(vao2)
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum)
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}
+
+// 光照贴图
+func Run3() {
+
 }
