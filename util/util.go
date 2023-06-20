@@ -165,6 +165,28 @@ func MakeTexture(filepath string) uint32 {
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(rgba2.Rect.Size().X), int32(rgba2.Rect.Size().Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba2.Pix))
 	gl.GenerateMipmap(gl.TEXTURE_2D)
 
+	gl.BindTexture(gl.TEXTURE_2D, 0)
+
+	return texture
+}
+
+func MakeTextureByImage(img image.Image) uint32 {
+	var texture uint32
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+
+	rgba2 := image.NewRGBA(img.Bounds())
+	draw.Draw(rgba2, rgba2.Bounds(), img, image.Point{0, 0}, draw.Src)
+
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, int32(rgba2.Rect.Size().X), int32(rgba2.Rect.Size().Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba2.Pix))
+	gl.GenerateMipmap(gl.TEXTURE_2D)
+
+	gl.BindTexture(gl.TEXTURE_2D, 0)
+
 	return texture
 }
 
@@ -180,9 +202,15 @@ func MakeTextureCube(filepathArray []string) uint32 {
 		rgba2 := image.NewRGBA(img2.Bounds())
 		draw.Draw(rgba2, rgba2.Bounds(), img2, image.Point{0, 0}, draw.Src)
 
+		// right, left, top, bottom, back, front
+		//
+		// TEXTURE_CUBE_MAP_POSITIVE_X   = 0x8515
+		// TEXTURE_CUBE_MAP_NEGATIVE_X   = 0x8516
+		// TEXTURE_CUBE_MAP_POSITIVE_Y   = 0x8517
+		// TEXTURE_CUBE_MAP_NEGATIVE_Y   = 0x8518
+		// TEXTURE_CUBE_MAP_POSITIVE_Z   = 0x8519
+		// TEXTURE_CUBE_MAP_NEGATIVE_Z   = 0x851A
 		gl.TexImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X+uint32(i), 0, gl.RGBA, int32(rgba2.Rect.Size().X), int32(rgba2.Rect.Size().Y), 0, gl.RGBA, gl.UNSIGNED_BYTE, gl.Ptr(rgba2.Pix))
-
-		// gl.GenerateMipmap(gl.TEXTURE_CUBE_MAP)
 	}
 
 	gl.TexParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)

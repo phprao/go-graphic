@@ -3,7 +3,9 @@ package demo4
 // 纹理贴图
 
 import (
+	"image/gif"
 	"math"
+	"os"
 	"runtime"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
@@ -171,6 +173,61 @@ const (
 			frag_colour = texture(ourTexture, fTexCoord);
         }
     ` + "\x00"
+	vertexShaderSource8 = `
+        #version 410
+
+        in vec3 vPosition;
+		out vec3 textureDir;
+
+		uniform mat4 transe;
+
+        void main() {
+            gl_Position = transe * vec4(vPosition, 1.0);
+			textureDir = vPosition;
+        }
+    ` + "\x00"
+	fragmentShaderSource8 = `
+        #version 410
+        
+		in vec3 textureDir;
+
+		out vec4 frag_colour;
+
+		uniform samplerCube cubemap;
+
+        void main() {
+			frag_colour = texture(cubemap, textureDir);
+        }
+    ` + "\x00"
+
+	vertexShaderSource9 = `
+        #version 410
+
+        in vec3 vPosition;
+		in vec2 vTexCoord;
+		
+		out vec2 fTexCoord;
+
+		uniform mat4 transe;
+
+        void main() {
+            gl_Position = transe * vec4(vPosition, 1.0);
+			fTexCoord = vec2(vTexCoord.x, 1.0-vTexCoord.y);
+        }
+    ` + "\x00"
+	fragmentShaderSource9 = `
+        #version 410
+        
+		in vec2 fTexCoord;
+
+		out vec4 frag_colour;
+
+		uniform sampler2D ourTexture1;
+
+        void main() {
+			frag_colour = texture(ourTexture1, fTexCoord);
+        }
+    ` + "\x00"
 )
 
 var (
@@ -188,20 +245,6 @@ var (
 	}
 
 	vertices36 = []float32{
-		// Left
-		-0.5, 0.5, 0.5, 1.0, 0.0,
-		-0.5, 0.5, -0.5, 1.0, 1.0,
-		-0.5, -0.5, -0.5, 0.0, 1.0,
-		-0.5, -0.5, -0.5, 0.0, 1.0,
-		-0.5, -0.5, 0.5, 0.0, 0.0,
-		-0.5, 0.5, 0.5, 1.0, 0.0,
-		// Front
-		-0.5, -0.5, 0.5, 0.0, 0.0,
-		0.5, -0.5, 0.5, 1.0, 0.0,
-		0.5, 0.5, 0.5, 1.0, 1.0,
-		0.5, 0.5, 0.5, 1.0, 1.0,
-		-0.5, 0.5, 0.5, 0.0, 1.0,
-		-0.5, -0.5, 0.5, 0.0, 0.0,
 		// Right
 		0.5, 0.5, 0.5, 1.0, 0.0,
 		0.5, 0.5, -0.5, 1.0, 1.0,
@@ -209,13 +252,13 @@ var (
 		0.5, -0.5, -0.5, 0.0, 1.0,
 		0.5, -0.5, 0.5, 0.0, 0.0,
 		0.5, 0.5, 0.5, 1.0, 0.0,
-		// back
-		-0.5, -0.5, -0.5, 0.0, 0.0,
-		0.5, -0.5, -0.5, 1.0, 0.0,
-		0.5, 0.5, -0.5, 1.0, 1.0,
-		0.5, 0.5, -0.5, 1.0, 1.0,
-		-0.5, 0.5, -0.5, 0.0, 1.0,
-		-0.5, -0.5, -0.5, 0.0, 0.0,
+		// Left
+		-0.5, 0.5, 0.5, 1.0, 0.0,
+		-0.5, 0.5, -0.5, 1.0, 1.0,
+		-0.5, -0.5, -0.5, 0.0, 1.0,
+		-0.5, -0.5, -0.5, 0.0, 1.0,
+		-0.5, -0.5, 0.5, 0.0, 0.0,
+		-0.5, 0.5, 0.5, 1.0, 0.0,
 		// Top
 		-0.5, 0.5, -0.5, 0.0, 1.0,
 		0.5, 0.5, -0.5, 1.0, 1.0,
@@ -230,6 +273,64 @@ var (
 		0.5, -0.5, 0.5, 1.0, 0.0,
 		-0.5, -0.5, 0.5, 0.0, 0.0,
 		-0.5, -0.5, -0.5, 0.0, 1.0,
+		// back
+		-0.5, -0.5, -0.5, 0.0, 0.0,
+		0.5, -0.5, -0.5, 1.0, 0.0,
+		0.5, 0.5, -0.5, 1.0, 1.0,
+		0.5, 0.5, -0.5, 1.0, 1.0,
+		-0.5, 0.5, -0.5, 0.0, 1.0,
+		-0.5, -0.5, -0.5, 0.0, 0.0,
+		// Front
+		-0.5, -0.5, 0.5, 0.0, 0.0,
+		0.5, -0.5, 0.5, 1.0, 0.0,
+		0.5, 0.5, 0.5, 1.0, 1.0,
+		0.5, 0.5, 0.5, 1.0, 1.0,
+		-0.5, 0.5, 0.5, 0.0, 1.0,
+		-0.5, -0.5, 0.5, 0.0, 0.0,
+	}
+
+	vertices37 = []float32{
+		-1.0, 1.0, -1.0,
+		-1.0, -1.0, -1.0,
+		1.0, -1.0, -1.0,
+		1.0, -1.0, -1.0,
+		1.0, 1.0, -1.0,
+		-1.0, 1.0, -1.0,
+
+		-1.0, -1.0, 1.0,
+		-1.0, -1.0, -1.0,
+		-1.0, 1.0, -1.0,
+		-1.0, 1.0, -1.0,
+		-1.0, 1.0, 1.0,
+		-1.0, -1.0, 1.0,
+
+		1.0, -1.0, -1.0,
+		1.0, -1.0, 1.0,
+		1.0, 1.0, 1.0,
+		1.0, 1.0, 1.0,
+		1.0, 1.0, -1.0,
+		1.0, -1.0, -1.0,
+
+		-1.0, -1.0, 1.0,
+		-1.0, 1.0, 1.0,
+		1.0, 1.0, 1.0,
+		1.0, 1.0, 1.0,
+		1.0, -1.0, 1.0,
+		-1.0, -1.0, 1.0,
+
+		-1.0, 1.0, -1.0,
+		1.0, 1.0, -1.0,
+		1.0, 1.0, 1.0,
+		1.0, 1.0, 1.0,
+		-1.0, 1.0, 1.0,
+		-1.0, 1.0, -1.0,
+
+		-1.0, -1.0, -1.0,
+		-1.0, -1.0, 1.0,
+		1.0, -1.0, -1.0,
+		1.0, -1.0, -1.0,
+		-1.0, -1.0, 1.0,
+		1.0, -1.0, 1.0,
 	}
 )
 
@@ -1090,30 +1191,35 @@ func Run15() {
 	}
 }
 
-// TODO
-// 使用六个面绘制不同的纹理
+// 天空盒
 // 天空盒大图下载
 // 然后使用网站 https://jaxry.github.io/panorama-to-cubemap/ 或者 https://www.360toolkit.co/convert-spherical-equirectangular-tocubemap.html 来切割成6个小图
-// https://blog.csdn.net/weixin_44176696/article/details/112144337
-// https://blog.csdn.net/weixin_31894867/article/details/113090151
 func Run16() {
 	runtime.LockOSThread()
-	window := util.InitGlfw(width, height, "texture2d")
+	window := util.InitGlfw(width, height, "textureCube")
 	defer glfw.Terminate()
 
-	program, _ := util.InitOpenGL(vertexShaderSource6, fragmentShaderSource6)
-	vao := util.MakeVaoWithAttrib(program, vertices36, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vTexCoord", Size: 2}})
-	textureLeft := util.MakeTexture("demo4/box1/left.jpg")
-	textureFront := util.MakeTexture("demo4/box1/front.jpg")
-	textureRight := util.MakeTexture("demo4/box1/right.jpg")
-	textureBack := util.MakeTexture("demo4/box1/back.jpg")
-	textureTop := util.MakeTexture("demo4/box1/top.jpg")
-	textureBottom := util.MakeTexture("demo4/box1/bottom.jpg")
+	program1, _ := util.InitOpenGL(vertexShaderSource8, fragmentShaderSource8)
+	pointNum1 := int32(len(vertices37)) / 3
+	vao1 := util.MakeVaoWithAttrib(program1, vertices37, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}})
+	texture := util.MakeTextureCube([]string{
+		"demo4/skybox/right.jpg",
+		"demo4/skybox/left.jpg",
+		"demo4/skybox/top.jpg",
+		"demo4/skybox/bottom.jpg",
+		"demo4/skybox/front.jpg",
+		"demo4/skybox/back.jpg",
+	})
+
+	program2, _ := util.MakeProgram(vertexShaderSource9, fragmentShaderSource9)
+	vao2 := util.MakeVaoWithAttrib(program2, vertices36, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vTexCoord", Size: 2}})
+	pointNum2 := int32(len(vertices36)) / 5
+	texture1 := util.MakeTexture("demo4/container.jpg")
 
 	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
 	gl.Enable(gl.DEPTH_TEST)
 
-	cameraPos := mgl32.Vec3{0, 0, 0}
+	cameraPos := mgl32.Vec3{0, 0, 0} // 相机在原点
 	cameraFront := mgl32.Vec3{0, 0, -1}
 	cameraUp := mgl32.Vec3{0, 1, 0}
 
@@ -1122,62 +1228,73 @@ func Run16() {
 
 	for !window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		gl.UseProgram(program)
 
-		gl.BindVertexArray(vao)
-		transe := camera.LookAtAndPerspective().Mul4(mgl32.Ident4())
-		gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+		// 天空盒
+		gl.UseProgram(program1)
+
+		gl.DepthMask(false) // 禁用深度缓存，这样天空盒就会永远被绘制在其它物体的背后
+		gl.BindVertexArray(vao1)
+
+		view := camera.LookAt()
+		// 将4X4转换成3X3，去掉W分量，移除观察矩阵中的位移部分，这样天空盒就不会随着相机的
+		// 移动而移动，也就不会跳出天空盒，但保留旋转变换，让玩家仍然能够环顾场景。
+		view = view.Mat3().Mat4()
+		projection := camera.Perspective()
+		transe := projection.Mul4(view).Mul4(mgl32.Ident4())
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program1, gl.Str("transe\x00")), 1, false, &transe[0])
 
 		gl.ActiveTexture(gl.TEXTURE0)
-		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("ourTexture"+"\x00")), 0)
+		gl.Uniform1i(gl.GetUniformLocation(program1, gl.Str("skybox"+"\x00")), 0)
 
-		gl.BindTexture(gl.TEXTURE_2D, textureLeft)
-		gl.DrawArrays(gl.TRIANGLES, 0, 6)
+		gl.BindTexture(gl.TEXTURE_CUBE_MAP, texture)
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum1)
 
-		gl.BindTexture(gl.TEXTURE_2D, textureFront)
-		gl.DrawArrays(gl.TRIANGLES, 6, 6)
+		// 其他物体
+		gl.DepthMask(true) // 开启深度缓存
+		gl.UseProgram(program2)
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, texture1)
+		gl.Uniform1i(gl.GetUniformLocation(program2, gl.Str("ourTexture1"+"\x00")), 0)
 
-		gl.BindTexture(gl.TEXTURE_2D, textureRight)
-		gl.DrawArrays(gl.TRIANGLES, 12, 6)
-
-		gl.BindTexture(gl.TEXTURE_2D, textureBack)
-		gl.DrawArrays(gl.TRIANGLES, 18, 6)
-
-		gl.BindTexture(gl.TEXTURE_2D, textureTop)
-		gl.DrawArrays(gl.TRIANGLES, 24, 6)
-
-		gl.BindTexture(gl.TEXTURE_2D, textureBottom)
-		gl.DrawArrays(gl.TRIANGLES, 30, 6)
+		gl.BindVertexArray(vao2)
+		// 此时摄像机还在中心，我们把物体向里推一点
+		transe2 := camera.LookAtAndPerspective().Mul4(mgl32.Translate3D(0, 0, -3))
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program2, gl.Str("transe\x00")), 1, false, &transe2[0])
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum2)
 
 		glfw.PollEvents()
 		window.SwapBuffers()
 	}
 }
 
-// TODO
 // 天空盒
+// 优化
 func Run17() {
 	runtime.LockOSThread()
-	window := util.InitGlfw(width, height, "texture2d")
+	window := util.InitGlfw(width, height, "textureCube")
 	defer glfw.Terminate()
 
-	program, _ := util.InitOpenGL(vertexShaderSource6, fragmentShaderSource6)
-	vao := util.MakeVaoWithAttrib(program, vertices36, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vTexCoord", Size: 2}})
+	program1, _ := util.InitOpenGL(vertexShaderSource8, fragmentShaderSource8)
+	pointNum1 := int32(len(vertices37)) / 3
+	vao1 := util.MakeVaoWithAttrib(program1, vertices37, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}})
 	texture := util.MakeTextureCube([]string{
-		"demo4/skybox-left.png",
-		"demo4/skybox-front.png",
-		"demo4/skybox-right.png",
-		"demo4/skybox-back.png",
-		"demo4/skybox-top.png",
-		"demo4/skybox-bottom.png",
+		"demo4/skybox/right.jpg",
+		"demo4/skybox/left.jpg",
+		"demo4/skybox/top.jpg",
+		"demo4/skybox/bottom.jpg",
+		"demo4/skybox/front.jpg",
+		"demo4/skybox/back.jpg",
 	})
 
-	pointNum := int32(len(vertices36)) / 5
+	program2, _ := util.MakeProgram(vertexShaderSource9, fragmentShaderSource9)
+	vao2 := util.MakeVaoWithAttrib(program2, vertices36, nil, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vTexCoord", Size: 2}})
+	pointNum2 := int32(len(vertices36)) / 5
+	texture1 := util.MakeTexture("demo4/container.jpg")
 
 	gl.ClearColor(0.2, 0.3, 0.3, 1.0)
 	gl.Enable(gl.DEPTH_TEST)
 
-	cameraPos := mgl32.Vec3{0, 0, 0}
+	cameraPos := mgl32.Vec3{0, 0, 0} // 相机在原点
 	cameraFront := mgl32.Vec3{0, 0, -1}
 	cameraUp := mgl32.Vec3{0, 1, 0}
 
@@ -1186,17 +1303,155 @@ func Run17() {
 
 	for !window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-		gl.UseProgram(program)
 
-		gl.BindVertexArray(vao)
-		transe := camera.LookAtAndPerspective().Mul4(mgl32.Ident4())
-		gl.UniformMatrix4fv(gl.GetUniformLocation(program, gl.Str("transe\x00")), 1, false, &transe[0])
+		// 天空盒
+		gl.UseProgram(program1)
+
+		gl.DepthMask(false) // 禁用深度缓存，这样天空盒就会永远被绘制在其它物体的背后
+		gl.BindVertexArray(vao1)
+
+		view := camera.LookAt()
+		// 移除观察矩阵中的位移部分，这样天空盒就不会随着相机的移动而移动，也就不会跳出天空盒，但保留旋转变换，让玩家仍然能够环顾场景。
+		view = view.Mat3().Mat4()
+		projection := camera.Perspective()
+		transe := projection.Mul4(view).Mul4(mgl32.Ident4())
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program1, gl.Str("transe\x00")), 1, false, &transe[0])
 
 		gl.ActiveTexture(gl.TEXTURE0)
-		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("skybox"+"\x00")), 0)
+		gl.Uniform1i(gl.GetUniformLocation(program1, gl.Str("skybox"+"\x00")), 0)
 
 		gl.BindTexture(gl.TEXTURE_CUBE_MAP, texture)
-		gl.DrawArrays(gl.TRIANGLES, 0, pointNum)
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum1)
+
+		// 其他物体
+		gl.DepthMask(true) // 开启深度缓存
+		gl.UseProgram(program2)
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, texture1)
+		gl.Uniform1i(gl.GetUniformLocation(program2, gl.Str("ourTexture1"+"\x00")), 0)
+
+		gl.BindVertexArray(vao2)
+		// 此时摄像机还在中心，我们把物体向里推一点
+		transe2 := camera.LookAtAndPerspective().Mul4(mgl32.Translate3D(0, 0, -3))
+		gl.UniformMatrix4fv(gl.GetUniformLocation(program2, gl.Str("transe\x00")), 1, false, &transe2[0])
+		gl.DrawArrays(gl.TRIANGLES, 0, pointNum2)
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}
+
+// 多张图片轮播图
+// 每秒切换一次
+func Run18() {
+	runtime.LockOSThread()
+	window := util.InitGlfw(width, height, "texture2d")
+	defer glfw.Terminate()
+
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	vao := util.MakeVaoWithAttrib(program, vertices, indices, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vColor", Size: 3}, {Name: "vTexCoord", Size: 2}})
+	pointNum := int32(len(indices))
+
+	testureSlice := []uint32{
+		util.MakeTexture("demo4/box2/front.jpg"),
+		util.MakeTexture("demo4/box2/left.jpg"),
+		util.MakeTexture("demo4/box2/right.jpg"),
+		util.MakeTexture("demo4/box2/back.jpg"),
+	}
+
+	for !window.ShouldClose() {
+		gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.ActiveTexture(gl.TEXTURE0)
+		t := int(glfw.GetTime()) % len(testureSlice)
+		gl.BindTexture(gl.TEXTURE_2D, testureSlice[t])
+
+		gl.BindVertexArray(vao)
+		gl.DrawElements(gl.TRIANGLES, pointNum, gl.UNSIGNED_INT, gl.Ptr(indices))
+
+		glfw.PollEvents()
+		window.SwapBuffers()
+	}
+}
+
+// GIF图片贴图
+func Run19() {
+	runtime.LockOSThread()
+	window := util.InitGlfw(width, height, "texture2d")
+	defer glfw.Terminate()
+
+	program, _ := util.InitOpenGL(vertexShaderSource, fragmentShaderSource)
+	vao := util.MakeVaoWithAttrib(program, vertices, indices, []util.VertAttrib{{Name: "vPosition", Size: 3}, {Name: "vColor", Size: 3}, {Name: "vTexCoord", Size: 2}})
+	pointNum := int32(len(indices))
+
+	f, _ := os.Open("demo4/image15.gif")
+	defer f.Close()
+
+	gi, _ := gif.DecodeAll(f)
+
+	type TextureSlice struct {
+		TextureId uint32
+		Delay     int
+	}
+
+	imageLen := len(gi.Image)
+
+	textureSlice := make([]TextureSlice, imageLen)
+
+	for k, v := range gi.Image {
+		textureSlice[k].TextureId = util.MakeTextureByImage(v)
+	}
+
+	for k, d := range gi.Delay {
+		textureSlice[k].Delay = d
+	}
+
+	// 更精细的参数
+	var framTimeStart float64
+	var frameIndex int
+	var loop int
+
+	for !window.ShouldClose() {
+		gl.ClearColor(0.2, 0.3, 0.3, 1.0)
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.UseProgram(program)
+
+		gl.ActiveTexture(gl.TEXTURE0)
+		gltime := glfw.GetTime()
+
+		// LoopCount 控制动画的重复播放规则
+		// 0 表示无限循环
+		// -1 表示只播放一次
+		// 其它的播放 LoopCount+1 次
+		//
+		// Delay 连续的延迟时间，单位是百分之一秒，delay中数值表示展示的时间，10就表示0.1秒
+		if gltime-framTimeStart > float64(textureSlice[frameIndex].Delay)/100 {
+			if gi.LoopCount == 0 {
+				frameIndex++
+				frameIndex = frameIndex % imageLen
+			} else if gi.LoopCount == -1 {
+				if frameIndex < imageLen {
+					frameIndex++
+				}
+			} else {
+				if loop < gi.LoopCount+1 {
+					frameIndex++
+					frameIndex = frameIndex % imageLen
+					if frameIndex == 0 {
+						loop++
+					}
+				}
+			}
+
+			framTimeStart = gltime
+		}
+
+		gl.BindTexture(gl.TEXTURE_2D, textureSlice[frameIndex].TextureId)
+
+		gl.BindVertexArray(vao)
+		gl.DrawElements(gl.TRIANGLES, pointNum, gl.UNSIGNED_INT, gl.Ptr(indices))
 
 		glfw.PollEvents()
 		window.SwapBuffers()
